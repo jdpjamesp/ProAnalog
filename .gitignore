@@ -1,0 +1,33 @@
+# User config (contains API keys — never commit)
+Config/proanalog.json
+
+# Claude Code instructions (local developer tooling)
+CLAUDE.md
+
+# OpenEdge compiled files
+*.r
+*.xref
+*.lis
+
+# AppBuilder/Designer backups
+*.bk
+
+# OpenEdge parameter files (may contain DB connection strings/passwords)
+*.pf
+
+# OpenEdge database files (local test databases)
+*.db
+*.b1
+*.d1
+*.lg
+
+# Developer Studio (Eclipse) IDE metadata
+.project
+.settings/
+
+# Local path configuration
+propath.ini
+
+# OS
+Thumbs.db
+.DS_Store
