@@ -8,7 +8,7 @@
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-USING LogDetector.LogFormat FROM ANYWHERE.
+USING LogDetector.LogFormat FROM PROPATH.
 
 CLASS LogDetector.LogFormatRegistry:
 

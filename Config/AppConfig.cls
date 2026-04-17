@@ -11,8 +11,8 @@
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-USING Progress.Json.ObjectModel.ObjectModelParser FROM ANYWHERE.
-USING Progress.Json.ObjectModel.JsonObject        FROM ANYWHERE.
+USING Progress.Json.ObjectModel.ObjectModelParser FROM PROPATH.
+USING Progress.Json.ObjectModel.JsonObject        FROM PROPATH.
 
 CLASS Config.AppConfig:
 

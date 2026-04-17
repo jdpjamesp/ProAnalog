@@ -10,8 +10,8 @@
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-USING LLM.LLMMessage                        FROM ANYWHERE.
-USING LLM.ILLMProvider                      FROM ANYWHERE.
+USING LLM.LLMMessage                        FROM PROPATH.
+USING LLM.ILLMProvider                      FROM PROPATH.
 USING System.Net.Http.HttpClient            FROM ASSEMBLY.
 USING System.Net.Http.StringContent         FROM ASSEMBLY.
 USING System.Net.Http.HttpRequestMessage    FROM ASSEMBLY.

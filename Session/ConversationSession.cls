@@ -9,13 +9,13 @@
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-USING Config.AppConfig                  FROM ANYWHERE.
-USING LLM.ILLMProvider                  FROM ANYWHERE.
-USING LLM.LLMMessage                    FROM ANYWHERE.
-USING LLM.LLMProviderFactory            FROM ANYWHERE.
-USING LogDetector.LogDetectorService    FROM ANYWHERE.
-USING LogDetector.LogFormat             FROM ANYWHERE.
-USING Chunker.FileChunker               FROM ANYWHERE.
+USING Config.AppConfig                  FROM PROPATH.
+USING LLM.ILLMProvider                  FROM PROPATH.
+USING LLM.LLMMessage                    FROM PROPATH.
+USING LLM.LLMProviderFactory            FROM PROPATH.
+USING LogDetector.LogDetectorService    FROM PROPATH.
+USING LogDetector.LogFormat             FROM PROPATH.
+USING Chunker.FileChunker               FROM PROPATH.
 
 CLASS Session.ConversationSession:
 
