@@ -1,21 +1,21 @@
 /*------------------------------------------------------------------------
     File        : Config/AppConfig.cls
-    Purpose     : Reads proanalog.json and exposes configuration values
-                  to the rest of the application.
+    Purpose     : Reads Config/proanalog.json and exposes configuration
+                  values to the rest of the application.
     Syntax      : Config.AppConfig
-    Notes       : Uses .NET System.IO and System.Text.Json for JSON parsing.
-                  Config file is expected at Config/proanalog.json relative
-                  to the current working directory.
+    Notes       : Uses Progress.Json.ObjectModel for JSON parsing.
+                  Config file is resolved via FILE-INFO then SEARCH(),
+                  so it can be found relative to the working directory
+                  or anywhere on the PROPATH.
   ----------------------------------------------------------------------*/
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-USING System.IO.File          FROM ASSEMBLY.
-USING System.Text.Json.*      FROM ASSEMBLY.
+USING Progress.Json.ObjectModel.ObjectModelParser FROM ANYWHERE.
+USING Progress.Json.ObjectModel.JsonObject        FROM ANYWHERE.
 
 CLASS Config.AppConfig:
 
-    /* Path to config file, relative to working directory */
     DEFINE PRIVATE STATIC VARIABLE CONFIG-FILE AS CHARACTER
         INITIAL "Config/proanalog.json" NO-UNDO.
 
@@ -42,7 +42,7 @@ CLASS Config.AppConfig:
         GET. PRIVATE SET.
 
     /* ------------------------------------------------------------------ */
-    /* Constructor                                                          */
+    /* Constructors                                                         */
     /* ------------------------------------------------------------------ */
 
     CONSTRUCTOR PUBLIC AppConfig():
@@ -59,65 +59,47 @@ CLASS Config.AppConfig:
 
     METHOD PRIVATE VOID Load(INPUT pcPath AS CHARACTER):
 
-        DEFINE VARIABLE cJson        AS CHARACTER          NO-UNDO.
-        DEFINE VARIABLE oDoc         AS JsonDocument       NO-UNDO.
-        DEFINE VARIABLE oRoot        AS JsonElement        NO-UNDO.
-        DEFINE VARIABLE cAbsPath     AS CHARACTER          NO-UNDO.
+        DEFINE VARIABLE oParser   AS ObjectModelParser NO-UNDO.
+        DEFINE VARIABLE oDoc      AS JsonObject        NO-UNDO.
+        DEFINE VARIABLE cFullPath AS CHARACTER         NO-UNDO.
 
-        /* Resolve path relative to working directory if not absolute */
-        IF NOT System.IO.Path:IsPathRooted(pcPath) THEN
-            cAbsPath = System.IO.Path:Combine(THIS-OBJECT:WorkingDir(), pcPath).
-        ELSE
-            cAbsPath = pcPath.
+        /* Resolve the config file — try as-is first, then via SEARCH() */
+        FILE-INFO:FILE-NAME = pcPath.
+        cFullPath = FILE-INFO:FULL-PATHNAME.
 
-        IF NOT File:Exists(cAbsPath) THEN
+        IF cFullPath = ? THEN
+            cFullPath = SEARCH(pcPath).
+
+        IF cFullPath = ? OR cFullPath = "" THEN
             UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("ProAnalog config file not found: &1~n~nCopy Config/proanalog.json.template to Config/proanalog.json and fill in your API details.", cAbsPath), 0).
+                SUBSTITUTE("ProAnalog config file not found: &1~n~nCopy Config/proanalog.json.template to Config/proanalog.json and fill in your API details.", pcPath), 0).
 
-        cJson = File:ReadAllText(cAbsPath).
+        oParser = NEW ObjectModelParser().
+        oDoc    = CAST(oParser:ParseFile(cFullPath), JsonObject).
 
-        oDoc  = JsonDocument:Parse(cJson).
-        oRoot = oDoc:RootElement.
-
-        THIS-OBJECT:Provider       = THIS-OBJECT:GetString(oRoot, "provider",       "openai").
-        THIS-OBJECT:ApiKey         = THIS-OBJECT:GetString(oRoot, "apiKey",          "").
-        THIS-OBJECT:BaseUrl        = THIS-OBJECT:GetString(oRoot, "baseUrl",         "https://api.openai.com/v1").
-        THIS-OBJECT:Model          = THIS-OBJECT:GetString(oRoot, "model",           "gpt-4o").
-        THIS-OBJECT:MaxTokens      = THIS-OBJECT:GetInt   (oRoot, "maxTokens",       4096).
-        THIS-OBJECT:ChunkSizeChars = THIS-OBJECT:GetInt   (oRoot, "chunkSizeChars",  80000).
-
-        oDoc:Dispose().
+        THIS-OBJECT:Provider       = THIS-OBJECT:GetString(oDoc, "provider",       "openai").
+        THIS-OBJECT:ApiKey         = THIS-OBJECT:GetString(oDoc, "apiKey",          "").
+        THIS-OBJECT:BaseUrl        = THIS-OBJECT:GetString(oDoc, "baseUrl",         "https://api.openai.com/v1").
+        THIS-OBJECT:Model          = THIS-OBJECT:GetString(oDoc, "model",           "gpt-4o").
+        THIS-OBJECT:MaxTokens      = THIS-OBJECT:GetInt   (oDoc, "maxTokens",       4096).
+        THIS-OBJECT:ChunkSizeChars = THIS-OBJECT:GetInt   (oDoc, "chunkSizeChars",  80000).
 
     END METHOD.
 
-    METHOD PRIVATE CHARACTER GetString(INPUT oEl  AS JsonElement,
+    METHOD PRIVATE CHARACTER GetString(INPUT oObj AS JsonObject,
                                        INPUT pcKey AS CHARACTER,
                                        INPUT pcDef AS CHARACTER):
-
-        DEFINE VARIABLE oChild AS JsonElement NO-UNDO.
-
-        IF oEl:TryGetProperty(pcKey, OUTPUT oChild) THEN
-            RETURN oChild:GetString().
-
+        IF oObj:Has(pcKey) THEN
+            RETURN oObj:GetCharacter(pcKey).
         RETURN pcDef.
-
     END METHOD.
 
-    METHOD PRIVATE INTEGER GetInt(INPUT oEl  AS JsonElement,
+    METHOD PRIVATE INTEGER GetInt(INPUT oObj AS JsonObject,
                                   INPUT pcKey AS CHARACTER,
                                   INPUT piDef AS INTEGER):
-
-        DEFINE VARIABLE oChild AS JsonElement NO-UNDO.
-
-        IF oEl:TryGetProperty(pcKey, OUTPUT oChild) THEN
-            RETURN oChild:GetInt32().
-
+        IF oObj:Has(pcKey) THEN
+            RETURN oObj:GetInteger(pcKey).
         RETURN piDef.
-
-    END METHOD.
-
-    METHOD PRIVATE CHARACTER WorkingDir():
-        RETURN System.IO.Directory:GetCurrentDirectory().
     END METHOD.
 
 END CLASS.
