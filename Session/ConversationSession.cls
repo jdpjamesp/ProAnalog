@@ -9,13 +9,11 @@
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-USING Config.AppConfig                  FROM PROPATH.
-USING LLM.ILLMProvider                  FROM PROPATH.
-USING LLM.LLMMessage                    FROM PROPATH.
-USING LLM.LLMProviderFactory            FROM PROPATH.
-USING LogDetector.LogDetectorService    FROM PROPATH.
-USING LogDetector.LogFormat             FROM PROPATH.
-USING Chunker.FileChunker               FROM PROPATH.
+USING Chunker.FileChunker              FROM PROPATH.
+USING Config.AppConfig                 FROM PROPATH.
+USING LLM.*                            FROM PROPATH.
+USING LogDetector.*                    FROM PROPATH.
+USING Progress.Json.ObjectModel.*      FROM PROPATH.
 
 CLASS Session.ConversationSession:
 
@@ -45,13 +43,13 @@ CLASS Session.ConversationSession:
 
     /* Provider label for display in the UI status bar */
     DEFINE PUBLIC PROPERTY ProviderLabel AS CHARACTER NO-UNDO
-        GET.
+        GET:
             RETURN oProvider:GetLabel().
         END GET.
 
     /* Number of files loaded */
     DEFINE PUBLIC PROPERTY FileCount AS INTEGER NO-UNDO
-        GET.
+        GET:
             DEFINE VARIABLE i AS INTEGER NO-UNDO.
             FOR EACH ttFile NO-LOCK: i = i + 1. END.
             RETURN i.
@@ -232,6 +230,74 @@ CLASS Session.ConversationSession:
             ttMsg.cRole    = pcRole
             ttMsg.cContent = pcContent.
     END METHOD.
+
+    /*--------------------------------------------------------------------*/
+    /* Returns the full conversation history as a JSON array string.    */
+    /* Used by RunAnalysis.p to embed history in output.html for        */
+    /* follow-up prompts.                                               */
+    /*--------------------------------------------------------------------*/
+
+    METHOD PUBLIC CHARACTER GetHistoryJson():
+
+        DEFINE VARIABLE cJson  AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lFirst AS LOGICAL   NO-UNDO INITIAL TRUE.
+
+        cJson = "[".
+
+        FOR EACH ttMsg NO-LOCK BY ttMsg.iSeq:
+            IF NOT lFirst THEN cJson = cJson + ",".
+            cJson = cJson +
+                SUBSTITUTE('~{"role":"&1","content":"&2"~}',
+                    ttMsg.cRole,
+                    THIS-OBJECT:EscapeJson(ttMsg.cContent)).
+            lFirst = FALSE.
+        END.
+
+        cJson = cJson + "]".
+        RETURN cJson.
+
+    END METHOD.
+
+    /*--------------------------------------------------------------------*/
+    /* Restores conversation history from a parsed JsonArray.           */
+    /* Called by RunAnalysis.p for follow-up prompts.                   */
+    /*--------------------------------------------------------------------*/
+
+    METHOD PUBLIC VOID LoadHistory(INPUT poHistory AS JsonArray):
+
+        DEFINE VARIABLE oMsg AS JsonObject NO-UNDO.
+        DEFINE VARIABLE i    AS INTEGER    NO-UNDO.
+
+        EMPTY TEMP-TABLE ttMsg.
+        EMPTY TEMP-TABLE ttFile.
+        iNextMsg = 0.
+
+        DO i = 1 TO poHistory:Length:
+            oMsg = CAST(poHistory:GetJsonObject(i), JsonObject).
+            THIS-OBJECT:AppendMessage(
+                oMsg:GetCharacter("role"),
+                oMsg:GetCharacter("content")).
+        END.
+
+        IsLoaded = TRUE.
+
+    END METHOD.
+
+    /*--------------------------------------------------------------------*/
+
+    METHOD PRIVATE CHARACTER EscapeJson(INPUT pcText AS CHARACTER):
+
+        pcText = REPLACE(pcText, "~\",  "~\~\").
+        pcText = REPLACE(pcText, '"',   '~\"').
+        pcText = REPLACE(pcText, "~n",  "\n").
+        pcText = REPLACE(pcText, "~r",  "\r").
+        pcText = REPLACE(pcText, "~t",  "\t").
+
+        RETURN pcText.
+
+    END METHOD.
+
+    /*--------------------------------------------------------------------*/
 
     METHOD PRIVATE LLMMessage EXTENT BuildMessageArray():
 

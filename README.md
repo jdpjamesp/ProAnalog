@@ -1,6 +1,6 @@
 # ProAnalog
 
-ProAnalog is a Progress OpenEdge ABL application that allows you to load OpenEdge log files and analyse them interactively using an LLM (Large Language Model) of your choice. ProAnalog automatically detects the log format and provides the LLM with the context it needs, so you can simply ask questions like _"what was my application doing at 08:30?"_ without having to explain the log structure every time.
+ProAnalog is a Progress OpenEdge ABL application that allows you to load OpenEdge log files and analyse them using an LLM (Large Language Model) of your choice. ProAnalog automatically detects the log format and provides the LLM with the context it needs, so you can ask questions like _"what was my application doing at 08:30?"_ without explaining the log structure every time.
 
 ## Supported Log Formats
 
@@ -18,8 +18,9 @@ If the format cannot be determined, ProAnalog will still send the file with a ge
 ## Requirements
 
 - Progress OpenEdge 12.8 (or compatible 12.x)
-- Windows OS (uses .NET bridge for HTTP and file dialogs)
+- Windows OS (uses .NET bridge for HTTP)
 - An API key for one of the supported LLM providers (see below)
+- A modern web browser (for `index.html` and `output.html`)
 
 ## Setup
 
@@ -34,10 +35,10 @@ git clone https://github.com/jdpjamesp/ProAnalog
 Copy the template and fill in your API details:
 
 ```
-copy Config\proanalog.json.template Config\proanalog.json
+copy ProAnalog\Config\proanalog.json.template ProAnalog\Config\proanalog.json
 ```
 
-Edit `Config\proanalog.json`:
+Edit `ProAnalog\Config\proanalog.json`:
 
 ```json
 {
@@ -54,17 +55,33 @@ Edit `Config\proanalog.json`:
 
 ### 3. Configure your propath
 
-Ensure the ProAnalog project root directory is on your OpenEdge PROPATH so that ABL can resolve the class packages (`Config`, `LLM`, `LogDetector`, `Chunker`, `Session`).
+Ensure `openedge-project.json` is in the workspace root. The project is pre-configured with the correct build path and propath entries. If running from the command line without the IDE, set your PROPATH to include the workspace root (the folder containing `ProAnalog\`).
 
-In your `openedge-project.json` or launch configuration, add the project root to `propath`.
+## How to Use ProAnalog
 
-### 4. Run the application
+ProAnalog has a three-step workflow:
 
-Open and run `ProAnalog.w` in the Progress Developer Studio (or AppBuilder), or compile and run from the command line:
+### Step 1 — Open `index.html` in your browser
+
+Open `ProAnalog\index.html` in any modern web browser. Enter the full path(s) to your log files (one per line) and type your question. Then click **Generate input.json**.
+
+> **Tip:** On Windows you can drag files from Explorer directly into the file paths box to auto-fill their paths.
+
+Save the downloaded `input.json` file into the `ProAnalog\` folder.
+
+### Step 2 — Run `RunAnalysis.p` from the command line
 
 ```
-_progres -basekey INI -ininame openedge.ini -p ProAnalog.w
+_progres -b -p ProAnalog\RunAnalysis.p
 ```
+
+ProAnalog reads `input.json`, detects the log formats, sends the files and your question to the LLM, and writes the response to `output.html`. The file opens automatically in your default browser.
+
+### Step 3 — Read the response, ask follow-up questions
+
+`output.html` displays the LLM's response. To ask a follow-up question, type it into the box at the bottom of the page and click **Generate follow-up input.json**. Save the downloaded file to `ProAnalog\` and run `RunAnalysis.p` again.
+
+Follow-up prompts carry the full conversation history — the LLM remembers everything from earlier in the session without re-uploading the log files.
 
 ## Provider Configuration
 
@@ -123,44 +140,36 @@ _progres -basekey INI -ininame openedge.ini -p ProAnalog.w
 | `maxTokens` | Maximum tokens in the LLM response | `4096` |
 | `chunkSizeChars` | Max characters per log chunk (~4 chars per token) | `80000` |
 
-## Using ProAnalog
-
-1. Launch `ProAnalog.w`
-2. Click **Load Log File(s)...** and select one or more log files
-3. ProAnalog detects the format of each file and displays the results
-4. Type a question in the input box and press **Send** (or Ctrl+Enter)
-5. The LLM response appears in the conversation panel
-6. Continue asking follow-up questions — the full conversation history is maintained
-7. Click **New Session** to clear everything and start fresh
-
 ### Tips
 
-- You can load multiple log files at once (e.g. an access log and an application log from the same timeframe) — ProAnalog provides context for all of them in a single session.
-- For large files, ProAnalog automatically splits the content into chunks. You will see a note in the conversation panel when chunking occurs.
+- You can load multiple log files at once (e.g. an access log and an application log from the same timeframe).
+- For large files, ProAnalog automatically splits the content into chunks.
 - Be specific in your questions: _"List all HTTP 500 errors between 09:00 and 09:30"_ will get better results than _"show me errors"_.
 
 ## Project Structure
 
 ```
-ProAnalog/
-  ProAnalog.w                   Main GUI window
-  Config/
+ProAnalog\
+  index.html                    Input page — select files and enter your question
+  RunAnalysis.p                 ABL command-line runner
+  output.template.html          HTML template for generated results page
+  Config\
     proanalog.json.template     Configuration template (copy to proanalog.json)
-    proanalog.json              Your local config (not committed to source control)
+    proanalog.json              Your local config (not committed)
     AppConfig.cls               Reads Config/proanalog.json
-  LLM/
+  LLM\
     ILLMProvider.cls            Provider interface
     LLMMessage.cls              Message data class (role + content)
     OpenAIProvider.cls          OpenAI / Azure / Ollama implementation
     AnthropicProvider.cls       Anthropic (Claude) implementation
     LLMProviderFactory.cls      Instantiates the correct provider from config
-  LogDetector/
+  LogDetector\
     LogFormat.cls               Log format data class
     LogFormatRegistry.cls       All known format definitions
     LogDetectorService.cls      Detects format by sampling file content
-  Chunker/
+  Chunker\
     FileChunker.cls             Splits large files into sized chunks
-  Session/
+  Session\
     ConversationSession.cls     Orchestrates the full session
 ```
 
@@ -171,7 +180,7 @@ To add a new log format without changing any other code, subclass `LogFormatRegi
 ```abl
 CLASS MyRegistry INHERITS LogDetector.LogFormatRegistry:
     METHOD OVERRIDE PROTECTED VOID BuildFormats():
-        SUPER:BuildFormats().  /* keep all built-in formats */
+        SUPER:BuildFormats().
         THIS-OBJECT:Register(NEW LogDetector.LogFormat(
             "My Custom Log",
             "This log records ... (description for the LLM)",

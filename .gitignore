@@ -1,6 +1,10 @@
 # User config (contains API keys — never commit)
 Config/proanalog.json
 
+# Generated runtime files
+input.json
+output.html
+
 # Claude Code instructions (local developer tooling)
 CLAUDE.md
 

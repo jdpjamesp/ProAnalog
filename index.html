@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ProAnalog</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 48px 16px;
+    }
+
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 12px;
+      padding: 40px;
+      width: 100%;
+      max-width: 680px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .subtitle {
+      color: #64748b;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    .field { margin-bottom: 24px; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    textarea {
+      width: 100%;
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-family: "Cascadia Code", "Fira Code", "Consolas", monospace;
+      font-size: 13px;
+      padding: 12px 14px;
+      resize: vertical;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+
+    textarea:focus { border-color: #6366f1; }
+
+    textarea::placeholder { color: #475569; }
+
+    .hint {
+      font-size: 12px;
+      color: #475569;
+      margin-top: 6px;
+    }
+
+    .drop-zone {
+      border: 2px dashed #2d3148;
+      border-radius: 8px;
+      padding: 4px;
+      transition: border-color 0.15s;
+    }
+
+    .drop-zone.dragover { border-color: #6366f1; }
+
+    .btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .btn:hover { opacity: 0.9; }
+    .btn:active { opacity: 0.8; }
+
+    .steps {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid #2d3148;
+    }
+
+    .steps h2 {
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .step {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      background: #2d3148;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+
+    .step p { font-size: 13px; color: #64748b; line-height: 1.5; }
+    .step code {
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #a5b4fc;
+    }
+
+    #status {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #f87171;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">&#128202;</div>
+      <h1>ProAnalog</h1>
+    </div>
+    <p class="subtitle">Analyse Progress OpenEdge log files with AI</p>
+
+    <div class="field">
+      <label>Log File Paths</label>
+      <div class="drop-zone" id="dropZone">
+        <textarea id="filePaths" rows="4"
+          placeholder="C:\path\to\logfile.log&#10;C:\path\to\another.log"></textarea>
+      </div>
+      <p class="hint">One path per line. On Windows, drag files from Explorer into this box to auto-fill paths.</p>
+    </div>
+
+    <div class="field">
+      <label>Your Question</label>
+      <textarea id="prompt" rows="5"
+        placeholder="e.g. What errors appear in this log, and when did they first occur?"></textarea>
+    </div>
+
+    <button class="btn" onclick="generate()">Generate input.json</button>
+    <div id="status"></div>
+
+    <div class="steps">
+      <h2>Next steps after saving input.json</h2>
+      <div class="step">
+        <div class="step-num">1</div>
+        <p>Save the downloaded file as <code>input.json</code> inside the <code>ProAnalog\</code> folder.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <p>Run from the command line: <code>_progres -b -p ProAnalog\RunAnalysis.p</code></p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <p><code>output.html</code> will open automatically in your browser with the results.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const dropZone = document.getElementById('dropZone');
+    const filePathsTA = document.getElementById('filePaths');
+
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+
+      // On Windows, dragging from Explorer provides full paths via text/plain
+      const text = e.dataTransfer.getData('text/plain');
+      if (text && text.trim()) {
+        filePathsTA.value = text.trim();
+        return;
+      }
+
+      // Fallback: show filenames (user will need to complete the paths)
+      const names = Array.from(e.dataTransfer.files).map(f => f.name);
+      if (names.length) {
+        filePathsTA.value = names.join('\n');
+        document.getElementById('status').textContent =
+          'Note: full paths could not be detected — please verify or type the complete paths above.';
+      }
+    });
+
+    function generate() {
+      const status = document.getElementById('status');
+      status.textContent = '';
+
+      const raw = filePathsTA.value;
+      const paths = raw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+      const prompt = document.getElementById('prompt').value.trim();
+
+      if (paths.length === 0) {
+        status.textContent = 'Please enter at least one log file path.';
+        return;
+      }
+      if (!prompt) {
+        status.textContent = 'Please enter a question.';
+        return;
+      }
+
+      const data = {
+        mode: 'initial',
+        files: paths,
+        prompt: prompt
+      };
+
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'input.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      status.style.color = '#34d399';
+      status.textContent = 'input.json downloaded — save it to the ProAnalog\\ folder, then run RunAnalysis.p.';
+    }
+  </script>
+</body>
+</html>
