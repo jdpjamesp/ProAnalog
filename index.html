@@ -216,7 +216,9 @@
       status.textContent = '';
 
       const paths = document.getElementById('filePaths').value
-        .split('\n').map(s => s.trim()).filter(s => s.length > 0);
+        .split('\n')
+        .map(s => s.trim().replace(/^"(.*)"$/, '$1'))
+        .filter(s => s.length > 0);
       const prompt = document.getElementById('prompt').value.trim();
 
       if (paths.length === 0) {
