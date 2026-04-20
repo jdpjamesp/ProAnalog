@@ -16,6 +16,8 @@ USING System.IO.StreamReader       FROM ASSEMBLY.
 USING System.IO.StreamWriter       FROM ASSEMBLY.
 USING System.Text.StringBuilder    FROM ASSEMBLY.
 
+FUNCTION JsString RETURNS CHARACTER (INPUT pcText AS CHARACTER) FORWARD.
+
 /* ------------------------------------------------------------------ */
 
 DEFINE VARIABLE oConfig       AS AppConfig           NO-UNDO.
