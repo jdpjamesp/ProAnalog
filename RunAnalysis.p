@@ -56,12 +56,6 @@ cInputPath    = System.IO.Path:Combine(cBaseDir, "input.json").
 cOutputPath   = System.IO.Path:Combine(cBaseDir, "output.html").
 cTemplatePath = System.IO.Path:Combine(cBaseDir, "output.template.html").
 
-/* DEBUG — remove before release */
-MESSAGE "PROPATH:  " PROPATH SKIP
-        "BaseDir:  " cBaseDir SKIP
-        "Input:    " cInputPath SKIP
-        "Template: " cTemplatePath.
-
 /* ------------------------------------------------------------------ */
 /* Read and parse input.json                                           */
 /* ------------------------------------------------------------------ */
