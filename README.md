@@ -71,9 +71,13 @@ Save the downloaded `input.json` file into the `ProAnalog\` folder.
 
 ### Step 2 — Run `RunAnalysis.p` from the command line
 
+Open an **OpenEdge Command Prompt (proenv)** from the Start menu, `cd` to your workspace root, then run:
+
 ```
-_progres -b -p ProAnalog\RunAnalysis.p
+_progres -b -assemblies . -propath ".,ProAnalog,%DLC%\gui\netlib\OpenEdge.net.pl" -p ProAnalog\RunAnalysis.p
 ```
+
+> **Tip:** `proenv` pre-configures `%DLC%` and all OpenEdge environment variables so you don't need to set them manually.
 
 ProAnalog reads `input.json`, detects the log formats, sends the files and your question to the LLM, and writes the response to `output.html`. The file opens automatically in your default browser.
 

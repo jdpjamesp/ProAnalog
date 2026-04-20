@@ -163,8 +163,9 @@
       <button class="btn" onclick="askFollowup()">Generate follow-up input.json</button>
       <div class="status" id="status"></div>
       <div class="hint">
-        Save the downloaded <code>input.json</code> to the <code>ProAnalog\</code> folder,
-        then run <code>_progres -b -p ProAnalog\RunAnalysis.p</code> again.
+        Save the downloaded <code>input.json</code> to the <code>ProAnalog\</code> folder, then
+        from a <strong>proenv</strong> session at your workspace root run:<br><br>
+        <code>_progres -b -assemblies . -propath ".,ProAnalog,%DLC%\gui\netlib\OpenEdge.net.pl" -p ProAnalog\RunAnalysis.p</code>
       </div>
     </div>
   </div>
@@ -193,7 +194,7 @@
       document.body.appendChild(a); a.click();
       document.body.removeChild(a); URL.revokeObjectURL(url);
       status.style.color = '#34d399';
-      status.textContent = 'input.json downloaded — save to ProAnalog\\ then run RunAnalysis.p.';
+      status.textContent = 'input.json downloaded — save to ProAnalog\\ then re-run from proenv.';
     }
   </script>
 </body>
