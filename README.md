@@ -65,7 +65,7 @@ ProAnalog has a three-step workflow:
 
 Open `ProAnalog\index.html` in any modern web browser. Enter the full path(s) to your log files (one per line) and type your question. Then click **Generate input.json**.
 
-> **Tip:** On Windows you can drag files from Explorer directly into the file paths box to auto-fill their paths.
+> **Tip:** On Windows you can copy file paths from Explorer using Shift + Right-click → "Copy as path", then paste them into the file paths box. Paths wrapped in double quotes are automatically stripped.
 
 Save the downloaded `input.json` file into the `ProAnalog\` folder.
 
@@ -118,7 +118,22 @@ Follow-up prompts carry the full conversation history — the LLM remembers ever
     "provider":  "anthropic",
     "apiKey":    "sk-ant-...",
     "baseUrl":   "https://api.anthropic.com/v1",
-    "model":     "claude-opus-4-6"
+    "model":     "claude-sonnet-4-6"
+}
+```
+
+### Google Gemini (via OpenAI-compatible endpoint)
+
+Gemini API keys are free to obtain from [Google AI Studio](https://aistudio.google.com). Gemini 2.5 Flash has a very large context window, so a higher `chunkSizeChars` value is recommended.
+
+```json
+{
+    "provider":       "openai-compatible",
+    "apiKey":         "YOUR_GEMINI_API_KEY",
+    "baseUrl":        "https://generativelanguage.googleapis.com/v1beta/openai",
+    "model":          "gemini-2.5-flash-preview-05-20",
+    "maxTokens":      4096,
+    "chunkSizeChars": 800000
 }
 ```
 
@@ -147,16 +162,18 @@ Follow-up prompts carry the full conversation history — the LLM remembers ever
 ### Tips
 
 - You can load multiple log files at once (e.g. an access log and an application log from the same timeframe).
-- For large files, ProAnalog automatically splits the content into chunks.
+- For large files, ProAnalog automatically splits the content into chunks and sends each as a separate message.
 - Be specific in your questions: _"List all HTTP 500 errors between 09:00 and 09:30"_ will get better results than _"show me errors"_.
+- Providers with large context windows (e.g. Gemini 2.5 Flash) benefit from a higher `chunkSizeChars` to reduce the number of API calls.
 
 ## Project Structure
 
 ```
 ProAnalog\
-  index.html                    Input page — select files and enter your question
+  index.html                    Input page — enter file paths and your question
   RunAnalysis.p                 ABL command-line runner
   output.template.html          HTML template for generated results page
+  proanalog.ini                 OpenEdge startup INI (sets PROPATH)
   Config\
     proanalog.json.template     Configuration template (copy to proanalog.json)
     proanalog.json              Your local config (not committed)
@@ -164,7 +181,7 @@ ProAnalog\
   LLM\
     ILLMProvider.cls            Provider interface
     LLMMessage.cls              Message data class (role + content)
-    OpenAIProvider.cls          OpenAI / Azure / Ollama implementation
+    OpenAIProvider.cls          OpenAI / Azure / Ollama / OpenAI-compatible implementation
     AnthropicProvider.cls       Anthropic (Claude) implementation
     LLMProviderFactory.cls      Instantiates the correct provider from config
   LogDetector\
