@@ -66,8 +66,7 @@ CLASS LLM.OpenAIProvider IMPLEMENTS ILLMProvider:
                 DEFINE VARIABLE cStatus     AS CHARACTER                      NO-UNDO.
                 IF VALID-OBJECT(oEx:Response) THEN DO:
                     oHttpResp  = CAST(oEx:Response, System.Net.HttpWebResponse).
-                    cStatus    = STRING(INTEGER(oHttpResp:StatusCode))
-                                 + " " + oHttpResp:StatusDescription.
+                    cStatus    = oHttpResp:StatusDescription.
                     oErrReader = NEW StreamReader(oEx:Response:GetResponseStream()).
                     cErrBody   = oErrReader:ReadToEnd().
                 END.
