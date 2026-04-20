@@ -53,10 +53,6 @@ Edit `ProAnalog\Config\proanalog.json`:
 
 `Config\proanalog.json` is listed in `.gitignore` — your API key will not be committed.
 
-### 3. Configure your propath
-
-Ensure `openedge-project.json` is in the workspace root. The project is pre-configured with the correct build path and propath entries. If running from the command line without the IDE, set your PROPATH to include the workspace root (the folder containing `ProAnalog\`).
-
 ## How to Use ProAnalog
 
 ProAnalog has a three-step workflow:
