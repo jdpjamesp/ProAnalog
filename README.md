@@ -74,10 +74,10 @@ Save the downloaded `input.json` file into the `ProAnalog\` folder.
 Open an **OpenEdge Command Prompt (proenv)** from the Start menu, `cd` to your workspace root, then run:
 
 ```
-ProAnalog\run.bat
+_progres -b -assemblies . -basekey INI -ininame ProAnalog\proanalog.ini -p ProAnalog\RunAnalysis.p
 ```
 
-> **Tip:** `proenv` pre-configures all OpenEdge environment variables. `run.bat` sets `PROPATH` and launches the ABL session in one step.
+> **Tip:** `proenv` pre-configures all OpenEdge environment variables. The PROPATH is defined in `ProAnalog\proanalog.ini`.
 
 ProAnalog reads `input.json`, detects the log formats, sends the files and your question to the LLM, and writes the response to `output.html`. The file opens automatically in your default browser.
 
