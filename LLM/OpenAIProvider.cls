@@ -60,10 +60,21 @@ CLASS LLM.OpenAIProvider IMPLEMENTS ILLMProvider:
         DO ON ERROR UNDO, THROW:
             cResponse = oClient:UploadString(cEndpoint, "POST", cBody).
             CATCH oEx AS WebException:
-                DEFINE VARIABLE oErrReader AS StreamReader NO-UNDO.
-                oErrReader = NEW StreamReader(oEx:Response:GetResponseStream()).
+                DEFINE VARIABLE oErrReader  AS StreamReader                   NO-UNDO.
+                DEFINE VARIABLE oHttpResp   AS System.Net.HttpWebResponse     NO-UNDO.
+                DEFINE VARIABLE lcErrBody   AS LONGCHAR                       NO-UNDO.
+                DEFINE VARIABLE cStatus     AS CHARACTER                      NO-UNDO.
+                IF VALID-OBJECT(oEx:Response) THEN DO:
+                    oHttpResp  = CAST(oEx:Response, System.Net.HttpWebResponse).
+                    cStatus    = STRING(INTEGER(oHttpResp:StatusCode))
+                                 + " " + oHttpResp:StatusDescription.
+                    oErrReader = NEW StreamReader(oEx:Response:GetResponseStream()).
+                    lcErrBody  = oErrReader:ReadToEnd().
+                END.
+                ELSE
+                    cStatus = oEx:Message.
                 UNDO, THROW NEW Progress.Lang.AppError(
-                    SUBSTITUTE("OpenAI API error: &1", oErrReader:ReadToEnd()), 0).
+                    "OpenAI API error [" + cStatus + "]: " + lcErrBody, 0).
             END CATCH.
         END.
 
