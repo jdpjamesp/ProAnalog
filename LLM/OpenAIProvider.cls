@@ -42,7 +42,7 @@ CLASS LLM.OpenAIProvider IMPLEMENTS ILLMProvider:
                                          INPUT piMaxTokens AS INTEGER):
 
         DEFINE VARIABLE cEndpoint AS CHARACTER         NO-UNDO.
-        DEFINE VARIABLE cBody     AS CHARACTER         NO-UNDO.
+        DEFINE VARIABLE cBody     AS LONGCHAR          NO-UNDO.
         DEFINE VARIABLE cResponse AS CHARACTER         NO-UNDO.
         DEFINE VARIABLE oParser   AS ObjectModelParser NO-UNDO.
         DEFINE VARIABLE oDoc      AS JsonObject        NO-UNDO.
@@ -87,10 +87,10 @@ CLASS LLM.OpenAIProvider IMPLEMENTS ILLMProvider:
 
     /*--------------------------------------------------------------------*/
 
-    METHOD PRIVATE CHARACTER BuildRequestBody(INPUT poMessages  AS LLMMessage EXTENT,
-                                              INPUT piMaxTokens AS INTEGER):
+    METHOD PRIVATE LONGCHAR BuildRequestBody(INPUT poMessages  AS LLMMessage EXTENT,
+                                             INPUT piMaxTokens AS INTEGER):
 
-        DEFINE VARIABLE cJson AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cJson AS LONGCHAR  NO-UNDO.
         DEFINE VARIABLE i     AS INTEGER   NO-UNDO.
         DEFINE VARIABLE iLast AS INTEGER   NO-UNDO.
 
@@ -101,9 +101,8 @@ CLASS LLM.OpenAIProvider IMPLEMENTS ILLMProvider:
 
         DO i = 1 TO iLast:
             cJson = cJson +
-                SUBSTITUTE('~{"role":"&1","content":"&2"~}',
-                    poMessages[i]:Role,
-                    THIS-OBJECT:EscapeJson(poMessages[i]:Content)).
+                '~{"role":"' + poMessages[i]:Role + '","content":"' +
+                THIS-OBJECT:EscapeJson(poMessages[i]:Content) + '"~}'.
             IF i < iLast THEN cJson = cJson + ",".
         END.
 
@@ -115,7 +114,7 @@ CLASS LLM.OpenAIProvider IMPLEMENTS ILLMProvider:
 
     /*--------------------------------------------------------------------*/
 
-    METHOD PRIVATE CHARACTER EscapeJson(INPUT pcText AS CHARACTER):
+    METHOD PRIVATE LONGCHAR EscapeJson(INPUT pcText AS LONGCHAR):
 
         pcText = REPLACE(pcText, "~\",  "~\~\").
         pcText = REPLACE(pcText, '"',   '~\"').

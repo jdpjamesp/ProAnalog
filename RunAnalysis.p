@@ -37,10 +37,10 @@ DEFINE VARIABLE cMode         AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cPrompt       AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cFilePaths    AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cResponse     AS CHARACTER           NO-UNDO.
-DEFINE VARIABLE cHistoryJson  AS CHARACTER           NO-UNDO.
+DEFINE VARIABLE cHistoryJson  AS LONGCHAR            NO-UNDO.
 DEFINE VARIABLE cJson         AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cFilePath     AS CHARACTER           NO-UNDO.
-DEFINE VARIABLE cLine         AS CHARACTER           NO-UNDO.
+DEFINE VARIABLE cLine         AS LONGCHAR            NO-UNDO.
 DEFINE VARIABLE i             AS INTEGER             NO-UNDO.
 
 /* ------------------------------------------------------------------ */
@@ -55,6 +55,12 @@ cBaseDir = System.IO.Path:GetDirectoryName(
 cInputPath    = System.IO.Path:Combine(cBaseDir, "input.json").
 cOutputPath   = System.IO.Path:Combine(cBaseDir, "output.html").
 cTemplatePath = System.IO.Path:Combine(cBaseDir, "output.template.html").
+
+/* DEBUG — remove before release */
+MESSAGE "PROPATH:  " PROPATH SKIP
+        "BaseDir:  " cBaseDir SKIP
+        "Input:    " cInputPath SKIP
+        "Template: " cTemplatePath.
 
 /* ------------------------------------------------------------------ */
 /* Read and parse input.json                                           */

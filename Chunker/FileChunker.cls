@@ -21,7 +21,7 @@ CLASS Chunker.FileChunker:
 
     DEFINE PRIVATE TEMP-TABLE ttChunk NO-UNDO
         FIELD iSeq    AS INTEGER
-        FIELD cContent AS CHARACTER
+        FIELD cContent AS LONGCHAR
         INDEX ixSeq IS PRIMARY UNIQUE iSeq.
 
     /*--------------------------------------------------------------------*/
@@ -90,7 +90,7 @@ CLASS Chunker.FileChunker:
     /* Returns the content of chunk number piSeq (1-based).              */
     /*--------------------------------------------------------------------*/
 
-    METHOD PUBLIC CHARACTER GetChunk(INPUT piSeq AS INTEGER):
+    METHOD PUBLIC LONGCHAR GetChunk(INPUT piSeq AS INTEGER):
 
         FIND FIRST ttChunk WHERE ttChunk.iSeq = piSeq NO-LOCK NO-ERROR.
         IF AVAILABLE ttChunk THEN

@@ -26,7 +26,7 @@ CLASS Session.ConversationSession:
     DEFINE PRIVATE TEMP-TABLE ttMsg NO-UNDO
         FIELD iSeq    AS INTEGER
         FIELD cRole   AS CHARACTER
-        FIELD cContent AS CHARACTER
+        FIELD cContent AS LONGCHAR
         INDEX ixSeq IS PRIMARY UNIQUE iSeq.
 
     DEFINE PRIVATE VARIABLE iNextMsg AS INTEGER NO-UNDO INITIAL 0.
@@ -81,7 +81,7 @@ CLASS Session.ConversationSession:
         DEFINE VARIABLE i           AS INTEGER   NO-UNDO.
         DEFINE VARIABLE iChunks     AS INTEGER   NO-UNDO.
         DEFINE VARIABLE j           AS INTEGER   NO-UNDO.
-        DEFINE VARIABLE cChunkText  AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cChunkText  AS LONGCHAR  NO-UNDO.
 
         EMPTY TEMP-TABLE ttMsg.
         EMPTY TEMP-TABLE ttFile.
@@ -135,21 +135,18 @@ CLASS Session.ConversationSession:
 
             IF iChunks = 1 THEN DO:
                 THIS-OBJECT:AppendMessage("user",
-                    SUBSTITUTE("[Log file: &1 (&2)]~n~n&3",
-                        System.IO.Path:GetFileName(cPath),
-                        ttFile.cFormatName,
-                        oChunker:GetChunk(1))).
+                    "[Log file: " + System.IO.Path:GetFileName(cPath) +
+                    " (" + ttFile.cFormatName + ")]~n~n" +
+                    oChunker:GetChunk(1)).
             END.
             ELSE DO:
                 DO j = 1 TO iChunks:
                     cChunkText = oChunker:GetChunk(j).
                     THIS-OBJECT:AppendMessage("user",
-                        SUBSTITUTE("[Log file: &1 (&2) — chunk &3 of &4]~n~n&5",
-                            System.IO.Path:GetFileName(cPath),
-                            ttFile.cFormatName,
-                            j,
-                            iChunks,
-                            cChunkText)).
+                        "[Log file: " + System.IO.Path:GetFileName(cPath) +
+                        " (" + ttFile.cFormatName + ") — chunk " +
+                        STRING(j) + " of " + STRING(iChunks) + "]~n~n" +
+                        cChunkText).
                 END.
             END.
         END.
@@ -222,7 +219,7 @@ CLASS Session.ConversationSession:
     /*--------------------------------------------------------------------*/
 
     METHOD PRIVATE VOID AppendMessage(INPUT pcRole    AS CHARACTER,
-                                      INPUT pcContent AS CHARACTER):
+                                      INPUT pcContent AS LONGCHAR):
         iNextMsg = iNextMsg + 1.
         CREATE ttMsg.
         ASSIGN
@@ -237,19 +234,18 @@ CLASS Session.ConversationSession:
     /* follow-up prompts.                                               */
     /*--------------------------------------------------------------------*/
 
-    METHOD PUBLIC CHARACTER GetHistoryJson():
+    METHOD PUBLIC LONGCHAR GetHistoryJson():
 
-        DEFINE VARIABLE cJson  AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE lFirst AS LOGICAL   NO-UNDO INITIAL TRUE.
+        DEFINE VARIABLE cJson  AS LONGCHAR NO-UNDO.
+        DEFINE VARIABLE lFirst AS LOGICAL  NO-UNDO INITIAL TRUE.
 
         cJson = "[".
 
         FOR EACH ttMsg NO-LOCK BY ttMsg.iSeq:
             IF NOT lFirst THEN cJson = cJson + ",".
             cJson = cJson +
-                SUBSTITUTE('~{"role":"&1","content":"&2"~}',
-                    ttMsg.cRole,
-                    THIS-OBJECT:EscapeJson(ttMsg.cContent)).
+                '~{"role":"' + ttMsg.cRole + '","content":"' +
+                THIS-OBJECT:EscapeJson(ttMsg.cContent) + '"~}'.
             lFirst = FALSE.
         END.
 
@@ -285,7 +281,7 @@ CLASS Session.ConversationSession:
 
     /*--------------------------------------------------------------------*/
 
-    METHOD PRIVATE CHARACTER EscapeJson(INPUT pcText AS CHARACTER):
+    METHOD PRIVATE LONGCHAR EscapeJson(INPUT pcText AS LONGCHAR):
 
         pcText = REPLACE(pcText, "~\",  "~\~\").
         pcText = REPLACE(pcText, '"',   '~\"').

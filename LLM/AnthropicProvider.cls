@@ -49,7 +49,7 @@ CLASS LLM.AnthropicProvider IMPLEMENTS ILLMProvider:
                                          INPUT piMaxTokens AS INTEGER):
 
         DEFINE VARIABLE cEndpoint    AS CHARACTER         NO-UNDO.
-        DEFINE VARIABLE cBody        AS CHARACTER         NO-UNDO.
+        DEFINE VARIABLE cBody        AS LONGCHAR          NO-UNDO.
         DEFINE VARIABLE cResponse    AS CHARACTER         NO-UNDO.
         DEFINE VARIABLE oParser      AS ObjectModelParser NO-UNDO.
         DEFINE VARIABLE oDoc         AS JsonObject        NO-UNDO.
@@ -96,11 +96,11 @@ CLASS LLM.AnthropicProvider IMPLEMENTS ILLMProvider:
     /* user/assistant messages go in the messages array.                  */
     /*--------------------------------------------------------------------*/
 
-    METHOD PRIVATE CHARACTER BuildRequestBody(INPUT poMessages  AS LLMMessage EXTENT,
-                                              INPUT piMaxTokens AS INTEGER):
+    METHOD PRIVATE LONGCHAR BuildRequestBody(INPUT poMessages  AS LLMMessage EXTENT,
+                                             INPUT piMaxTokens AS INTEGER):
 
-        DEFINE VARIABLE cJson     AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cSystem   AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cJson     AS LONGCHAR  NO-UNDO.
+        DEFINE VARIABLE cSystem   AS LONGCHAR  NO-UNDO.
         DEFINE VARIABLE i         AS INTEGER   NO-UNDO.
         DEFINE VARIABLE iLast     AS INTEGER   NO-UNDO.
         DEFINE VARIABLE lFirstMsg AS LOGICAL   NO-UNDO INITIAL TRUE.
@@ -114,17 +114,16 @@ CLASS LLM.AnthropicProvider IMPLEMENTS ILLMProvider:
             END.
         END.
 
-        cJson = SUBSTITUTE('~{"model":"&1","max_tokens":&2,"system":"&3","messages":[',
-                    cModel, piMaxTokens, cSystem).
+        cJson = '~{"model":"' + cModel + '","max_tokens":' + STRING(piMaxTokens) +
+                ',"system":"' + cSystem + '","messages":['.
 
         DO i = 1 TO iLast:
             IF poMessages[i]:Role = "system" THEN NEXT.
 
             IF NOT lFirstMsg THEN cJson = cJson + ",".
             cJson = cJson +
-                SUBSTITUTE('~{"role":"&1","content":"&2"~}',
-                    poMessages[i]:Role,
-                    THIS-OBJECT:EscapeJson(poMessages[i]:Content)).
+                '~{"role":"' + poMessages[i]:Role + '","content":"' +
+                THIS-OBJECT:EscapeJson(poMessages[i]:Content) + '"~}'.
             lFirstMsg = FALSE.
         END.
 
@@ -136,7 +135,7 @@ CLASS LLM.AnthropicProvider IMPLEMENTS ILLMProvider:
 
     /*--------------------------------------------------------------------*/
 
-    METHOD PRIVATE CHARACTER EscapeJson(INPUT pcText AS CHARACTER):
+    METHOD PRIVATE LONGCHAR EscapeJson(INPUT pcText AS LONGCHAR):
 
         pcText = REPLACE(pcText, "~\",  "~\~\").
         pcText = REPLACE(pcText, '"',   '~\"').
