@@ -93,57 +93,6 @@
       margin-top: 6px;
     }
 
-    .drop-zone {
-      border: 2px dashed #2d3148;
-      border-radius: 8px;
-      transition: border-color 0.15s, background 0.15s;
-    }
-
-    .drop-zone.dragover {
-      border-color: #6366f1;
-      background: rgba(99,102,241,0.06);
-    }
-
-    .drop-target {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 14px 16px;
-      cursor: default;
-      color: #64748b;
-      font-size: 13px;
-      border-bottom: 1px solid #2d3148;
-      user-select: none;
-    }
-
-    .drop-target .drop-icon { font-size: 20px; }
-
-    .drop-target strong { color: #94a3b8; }
-
-    .browse-btn {
-      flex-shrink: 0;
-      margin-left: auto;
-      padding: 6px 14px;
-      background: #2d3148;
-      border: 1px solid #3d4168;
-      border-radius: 6px;
-      color: #c7d2fe;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-      white-space: nowrap;
-    }
-
-    .browse-btn:hover { background: #383d5a; }
-
-    .path-note {
-      padding: 6px 14px 10px;
-      font-size: 11px;
-      color: #475569;
-    }
-
     .btn {
       width: 100%;
       padding: 13px;
@@ -211,7 +160,6 @@
     #status {
       margin-top: 16px;
       font-size: 13px;
-      color: #f87171;
       min-height: 20px;
     }
   </style>
@@ -226,19 +174,9 @@
 
     <div class="field">
       <label>Log File Paths</label>
-      <div class="drop-zone" id="dropZone">
-        <div class="drop-target">
-          <span class="drop-icon">&#128229;</span>
-          <span><strong>Drag files here</strong> from Windows Explorer to fill paths automatically</span>
-          <button class="browse-btn" onclick="document.getElementById('filePicker').click()">Browse&hellip;</button>
-          <input type="file" id="filePicker" multiple accept=".log,.txt,.out" style="display:none">
-        </div>
-        <textarea id="filePaths" rows="4"
-          placeholder="C:\path\to\logfile.log&#10;C:\path\to\another.log"></textarea>
-        <div class="path-note">
-          &#9432; Drag from Explorer fills full paths automatically. Browse only provides filenames &mdash; complete the folder path manually if needed.
-        </div>
-      </div>
+      <textarea id="filePaths" rows="4"
+        placeholder="C:\path\to\logfile.log&#10;C:\path\to\another.log"></textarea>
+      <p class="hint">Enter one full file path per line.</p>
     </div>
 
     <div class="field">
@@ -272,72 +210,13 @@
   </div>
 
   <script>
-    const dropZone = document.getElementById('dropZone');
-    const filePathsTA = document.getElementById('filePaths');
-
-    dropZone.addEventListener('dragover', e => {
-      e.preventDefault();
-      dropZone.classList.add('dragover');
-    });
-
-    dropZone.addEventListener('dragleave', e => {
-      if (!dropZone.contains(e.relatedTarget)) {
-        dropZone.classList.remove('dragover');
-      }
-    });
-
-    // File picker — fills filenames; user may need to complete folder path
-    document.getElementById('filePicker').addEventListener('change', function () {
-      const names = Array.from(this.files).map(f => f.name);
-      if (!names.length) return;
-      filePathsTA.value = names.join('\n');
-      const status = document.getElementById('status');
-      status.style.color = '#f59e0b';
-      status.textContent =
-        'Filenames added — if the folder path is not already shown, complete each line with the full path.';
-      this.value = '';  // reset so the same file can be re-selected
-    });
-
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.classList.remove('dragover');
-
-      const status = document.getElementById('status');
-
-      // text/uri-list gives file:///C:/full/path on Windows Explorer drags
-      const uriList = e.dataTransfer.getData('text/uri-list');
-      if (uriList && uriList.trim()) {
-        const paths = uriList.split(/\r?\n/)
-          .map(s => s.trim())
-          .filter(s => s && !s.startsWith('#'))
-          .map(uri => decodeURIComponent(uri)
-            .replace(/^file:\/\/\//, '')
-            .replace(/\//g, '\\'));
-        if (paths.length) {
-          filePathsTA.value = paths.join('\n');
-          status.style.color = '#34d399';
-          status.textContent = '';
-          return;
-        }
-      }
-
-      // Fallback: show filenames only
-      const names = Array.from(e.dataTransfer.files).map(f => f.name);
-      if (names.length) {
-        filePathsTA.value = names.join('\n');
-        status.style.color = '#f59e0b';
-        status.textContent =
-          'Full paths could not be detected — please complete each line with the folder path.';
-      }
-    });
-
     function generate() {
       const status = document.getElementById('status');
       status.style.color = '#f87171';
       status.textContent = '';
 
-      const raw = filePathsTA.value;
-      const paths = raw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+      const paths = document.getElementById('filePaths').value
+        .split('\n').map(s => s.trim()).filter(s => s.length > 0);
       const prompt = document.getElementById('prompt').value.trim();
 
       if (paths.length === 0) {
@@ -349,14 +228,9 @@
         return;
       }
 
-      const data = {
-        mode: 'initial',
-        files: paths,
-        prompt: prompt
-      };
+      const data = { mode: 'initial', files: paths, prompt: prompt };
 
-      const json = JSON.stringify(data, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
