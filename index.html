@@ -302,19 +302,32 @@
       e.preventDefault();
       dropZone.classList.remove('dragover');
 
-      // On Windows, dragging from Explorer provides full paths via text/plain
-      const text = e.dataTransfer.getData('text/plain');
-      if (text && text.trim()) {
-        filePathsTA.value = text.trim();
-        return;
+      const status = document.getElementById('status');
+
+      // text/uri-list gives file:///C:/full/path on Windows Explorer drags
+      const uriList = e.dataTransfer.getData('text/uri-list');
+      if (uriList && uriList.trim()) {
+        const paths = uriList.split(/\r?\n/)
+          .map(s => s.trim())
+          .filter(s => s && !s.startsWith('#'))
+          .map(uri => decodeURIComponent(uri)
+            .replace(/^file:\/\/\//, '')
+            .replace(/\//g, '\\'));
+        if (paths.length) {
+          filePathsTA.value = paths.join('\n');
+          status.style.color = '#34d399';
+          status.textContent = '';
+          return;
+        }
       }
 
-      // Fallback: show filenames (user will need to complete the paths)
+      // Fallback: show filenames only
       const names = Array.from(e.dataTransfer.files).map(f => f.name);
       if (names.length) {
         filePathsTA.value = names.join('\n');
-        document.getElementById('status').textContent =
-          'Note: full paths could not be detected — please verify or type the complete paths above.';
+        status.style.color = '#f59e0b';
+        status.textContent =
+          'Full paths could not be detected — please complete each line with the folder path.';
       }
     });
 
