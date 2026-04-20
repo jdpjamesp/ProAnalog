@@ -131,7 +131,7 @@ Gemini API keys are free to obtain from [Google AI Studio](https://aistudio.goog
     "provider":       "openai-compatible",
     "apiKey":         "YOUR_GEMINI_API_KEY",
     "baseUrl":        "https://generativelanguage.googleapis.com/v1beta/openai",
-    "model":          "gemini-2.5-flash-preview-05-20",
+    "model":          "gemini-2.5-flash",
     "maxTokens":      4096,
     "chunkSizeChars": 800000
 }
