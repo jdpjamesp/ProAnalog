@@ -21,7 +21,7 @@ CLASS Chunker.FileChunker:
 
     DEFINE PRIVATE TEMP-TABLE ttChunk NO-UNDO
         FIELD iSeq    AS INTEGER
-        FIELD cContent AS LONGCHAR
+        FIELD cContent AS CLOB
         INDEX ixSeq IS PRIMARY UNIQUE iSeq.
 
     /*--------------------------------------------------------------------*/

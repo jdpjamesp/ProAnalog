@@ -26,7 +26,7 @@ CLASS Session.ConversationSession:
     DEFINE PRIVATE TEMP-TABLE ttMsg NO-UNDO
         FIELD iSeq    AS INTEGER
         FIELD cRole   AS CHARACTER
-        FIELD cContent AS LONGCHAR
+        FIELD cContent AS CLOB
         INDEX ixSeq IS PRIMARY UNIQUE iSeq.
 
     DEFINE PRIVATE VARIABLE iNextMsg AS INTEGER NO-UNDO INITIAL 0.
