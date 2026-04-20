@@ -92,9 +92,13 @@ CLASS Chunker.FileChunker:
 
     METHOD PUBLIC LONGCHAR GetChunk(INPUT piSeq AS INTEGER):
 
+        DEFINE VARIABLE lcResult AS LONGCHAR NO-UNDO.
+
         FIND FIRST ttChunk WHERE ttChunk.iSeq = piSeq NO-LOCK NO-ERROR.
-        IF AVAILABLE ttChunk THEN
-            RETURN ttChunk.cContent.
+        IF AVAILABLE ttChunk THEN DO:
+            lcResult = ttChunk.cContent.
+            RETURN lcResult.
+        END.
 
         RETURN "".
 

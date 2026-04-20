@@ -237,15 +237,17 @@ CLASS Session.ConversationSession:
     METHOD PUBLIC LONGCHAR GetHistoryJson():
 
         DEFINE VARIABLE cJson  AS LONGCHAR NO-UNDO.
-        DEFINE VARIABLE lFirst AS LOGICAL  NO-UNDO INITIAL TRUE.
+        DEFINE VARIABLE lFirst    AS LOGICAL  NO-UNDO INITIAL TRUE.
+        DEFINE VARIABLE lcContent AS LONGCHAR NO-UNDO.
 
         cJson = "[".
 
         FOR EACH ttMsg NO-LOCK BY ttMsg.iSeq:
             IF NOT lFirst THEN cJson = cJson + ",".
+            lcContent = ttMsg.cContent.
             cJson = cJson +
                 '~{"role":"' + ttMsg.cRole + '","content":"' +
-                THIS-OBJECT:EscapeJson(ttMsg.cContent) + '"~}'.
+                THIS-OBJECT:EscapeJson(lcContent) + '"~}'.
             lFirst = FALSE.
         END.
 
@@ -297,9 +299,10 @@ CLASS Session.ConversationSession:
 
     METHOD PRIVATE LLMMessage EXTENT BuildMessageArray():
 
-        DEFINE VARIABLE oResult AS LLMMessage EXTENT NO-UNDO.
-        DEFINE VARIABLE iCount  AS INTEGER           NO-UNDO.
-        DEFINE VARIABLE i       AS INTEGER           NO-UNDO.
+        DEFINE VARIABLE oResult   AS LLMMessage EXTENT NO-UNDO.
+        DEFINE VARIABLE iCount    AS INTEGER           NO-UNDO.
+        DEFINE VARIABLE i         AS INTEGER           NO-UNDO.
+        DEFINE VARIABLE lcContent AS LONGCHAR          NO-UNDO.
 
         FOR EACH ttMsg NO-LOCK: iCount = iCount + 1. END.
 
@@ -308,7 +311,8 @@ CLASS Session.ConversationSession:
 
         FOR EACH ttMsg NO-LOCK BY ttMsg.iSeq:
             i = i + 1.
-            oResult[i] = NEW LLMMessage(ttMsg.cRole, ttMsg.cContent).
+            lcContent   = ttMsg.cContent.
+            oResult[i] = NEW LLMMessage(ttMsg.cRole, lcContent).
         END.
 
         RETURN oResult.
