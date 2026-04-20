@@ -12,10 +12,9 @@
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-USING LogDetector.LogFormat          FROM PROPATH.
-USING LogDetector.LogFormatRegistry  FROM PROPATH.
+USING LogDetector.*                        FROM PROPATH.
 USING System.Text.RegularExpressions.Regex FROM ASSEMBLY.
-USING System.IO.StreamReader         FROM ASSEMBLY.
+USING System.IO.StreamReader               FROM ASSEMBLY.
 
 CLASS LogDetector.LogDetectorService:
 

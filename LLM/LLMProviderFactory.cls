@@ -9,10 +9,8 @@
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-USING LLM.ILLMProvider       FROM PROPATH.
-USING LLM.OpenAIProvider     FROM PROPATH.
-USING LLM.AnthropicProvider  FROM PROPATH.
-USING Config.AppConfig        FROM PROPATH.
+USING LLM.*            FROM PROPATH.
+USING Config.AppConfig FROM PROPATH.
 
 CLASS LLM.LLMProviderFactory:
 

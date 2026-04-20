@@ -8,30 +8,28 @@
                     - System prompt is a top-level field, not a message
                     - Response path: content[0].text
                     - max_tokens is required
-                  Uses .NET System.Net.Http and System.Text.Json.
+                  Uses System.Net.WebClient for synchronous HTTP calls,
+                  avoiding async Task complexity in ABL .NET interop.
+                  Uses Progress.Json.ObjectModel for response parsing.
   ----------------------------------------------------------------------*/
 
 BLOCK-LEVEL ON ERROR UNDO, THROW.
 
-USING LLM.LLMMessage                        FROM PROPATH.
-USING LLM.ILLMProvider                      FROM PROPATH.
-USING System.Net.Http.HttpClient            FROM ASSEMBLY.
-USING System.Net.Http.StringContent         FROM ASSEMBLY.
-USING System.Net.Http.HttpRequestMessage    FROM ASSEMBLY.
-USING System.Net.Http.HttpMethod            FROM ASSEMBLY.
-USING System.Text.Json.JsonDocument         FROM ASSEMBLY.
-USING System.Text.Json.JsonElement          FROM ASSEMBLY.
-USING System.Text.Encoding                  FROM ASSEMBLY.
+USING LLM.*                       FROM PROPATH.
+USING Progress.Json.ObjectModel.* FROM PROPATH.
+USING System.Net.WebClient        FROM ASSEMBLY.
+USING System.Net.WebException     FROM ASSEMBLY.
+USING System.IO.StreamReader      FROM ASSEMBLY.
 
 CLASS LLM.AnthropicProvider IMPLEMENTS ILLMProvider:
 
     DEFINE PRIVATE STATIC VARIABLE ANTHROPIC-VERSION AS CHARACTER
         INITIAL "2023-06-01" NO-UNDO.
 
-    DEFINE PRIVATE VARIABLE cBaseUrl  AS CHARACTER NO-UNDO.
-    DEFINE PRIVATE VARIABLE cApiKey   AS CHARACTER NO-UNDO.
-    DEFINE PRIVATE VARIABLE cModel    AS CHARACTER NO-UNDO.
-    DEFINE PRIVATE VARIABLE oClient   AS HttpClient NO-UNDO.
+    DEFINE PRIVATE VARIABLE cBaseUrl AS CHARACTER  NO-UNDO.
+    DEFINE PRIVATE VARIABLE cApiKey  AS CHARACTER  NO-UNDO.
+    DEFINE PRIVATE VARIABLE cModel   AS CHARACTER  NO-UNDO.
+    DEFINE PRIVATE VARIABLE oClient  AS WebClient  NO-UNDO.
 
     /*--------------------------------------------------------------------*/
 
@@ -41,7 +39,8 @@ CLASS LLM.AnthropicProvider IMPLEMENTS ILLMProvider:
         cBaseUrl = pcBaseUrl.
         cApiKey  = pcApiKey.
         cModel   = pcModel.
-        oClient  = NEW HttpClient().
+        oClient  = NEW WebClient().
+        oClient:Encoding = System.Text.Encoding:UTF8.
     END CONSTRUCTOR.
 
     /*--------------------------------------------------------------------*/
@@ -49,56 +48,38 @@ CLASS LLM.AnthropicProvider IMPLEMENTS ILLMProvider:
     METHOD PUBLIC CHARACTER SendMessages(INPUT poMessages  AS LLMMessage EXTENT,
                                          INPUT piMaxTokens AS INTEGER):
 
-        DEFINE VARIABLE cEndpoint     AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cBody         AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cResponse     AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE oContent      AS StringContent NO-UNDO.
-        DEFINE VARIABLE oRequest      AS HttpRequestMessage NO-UNDO.
-        DEFINE VARIABLE oDoc          AS JsonDocument NO-UNDO.
-        DEFINE VARIABLE oRoot         AS JsonElement  NO-UNDO.
-        DEFINE VARIABLE oContentArr   AS JsonElement  NO-UNDO.
-        DEFINE VARIABLE oFirst        AS JsonElement  NO-UNDO.
+        DEFINE VARIABLE cEndpoint    AS CHARACTER         NO-UNDO.
+        DEFINE VARIABLE cBody        AS CHARACTER         NO-UNDO.
+        DEFINE VARIABLE cResponse    AS CHARACTER         NO-UNDO.
+        DEFINE VARIABLE oParser      AS ObjectModelParser NO-UNDO.
+        DEFINE VARIABLE oDoc         AS JsonObject        NO-UNDO.
+        DEFINE VARIABLE oContentArr  AS JsonArray         NO-UNDO.
+        DEFINE VARIABLE oFirst       AS JsonObject        NO-UNDO.
 
         cEndpoint = TRIM(cBaseUrl, "/") + "/messages".
         cBody     = THIS-OBJECT:BuildRequestBody(poMessages, piMaxTokens).
 
-        oContent = NEW StringContent(cBody, Encoding:UTF8, "application/json").
-        oRequest = NEW HttpRequestMessage(HttpMethod:Post, cEndpoint).
-        oRequest:Content = oContent.
-        oRequest:Headers:Add("x-api-key",         cApiKey).
-        oRequest:Headers:Add("anthropic-version",  ANTHROPIC-VERSION).
+        oClient:Headers:Clear().
+        oClient:Headers:Add("Content-Type",      "application/json").
+        oClient:Headers:Add("x-api-key",         cApiKey).
+        oClient:Headers:Add("anthropic-version",  ANTHROPIC-VERSION).
 
-        DEFINE VARIABLE oTask AS System.Threading.Tasks.Task NO-UNDO.
-        DEFINE VARIABLE oHttpResponse AS System.Net.Http.HttpResponseMessage NO-UNDO.
-
-        oTask         = oClient:SendAsync(oRequest).
-        oTask:Wait().
-        oHttpResponse = CAST(oTask:Result, System.Net.Http.HttpResponseMessage).
-
-        IF NOT oHttpResponse:IsSuccessStatusCode THEN DO:
-            DEFINE VARIABLE oErrTask AS System.Threading.Tasks.Task NO-UNDO.
-            DEFINE VARIABLE cErrBody AS CHARACTER NO-UNDO.
-            oErrTask = oHttpResponse:Content:ReadAsStringAsync().
-            oErrTask:Wait().
-            cErrBody = oErrTask:Result:ToString().
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Anthropic API error &1: &2",
-                    INTEGER(oHttpResponse:StatusCode), cErrBody), 0).
+        DO ON ERROR UNDO, THROW:
+            cResponse = oClient:UploadString(cEndpoint, "POST", cBody).
+            CATCH oEx AS WebException:
+                DEFINE VARIABLE oErrReader AS StreamReader NO-UNDO.
+                oErrReader = NEW StreamReader(oEx:Response:GetResponseStream()).
+                UNDO, THROW NEW Progress.Lang.AppError(
+                    SUBSTITUTE("Anthropic API error: &1", oErrReader:ReadToEnd()), 0).
+            END CATCH.
         END.
 
-        DEFINE VARIABLE oRespTask AS System.Threading.Tasks.Task NO-UNDO.
-        oRespTask = oHttpResponse:Content:ReadAsStringAsync().
-        oRespTask:Wait().
-        cResponse = oRespTask:Result:ToString().
-
         /* Parse: content[0].text */
-        oDoc        = JsonDocument:Parse(cResponse).
-        oRoot       = oDoc:RootElement.
-        oContentArr = oRoot:GetProperty("content").
-        oFirst      = oContentArr[0].
-        cResponse   = oFirst:GetProperty("text"):GetString().
-
-        oDoc:Dispose().
+        oParser     = NEW ObjectModelParser().
+        oDoc        = CAST(oParser:Parse(cResponse), JsonObject).
+        oContentArr = CAST(oDoc:GetJsonArray("content"), JsonArray).
+        oFirst      = CAST(oContentArr:GetJsonObject(1), JsonObject).
+        cResponse   = oFirst:GetCharacter("text").
 
         RETURN cResponse.
 
@@ -118,15 +99,14 @@ CLASS LLM.AnthropicProvider IMPLEMENTS ILLMProvider:
     METHOD PRIVATE CHARACTER BuildRequestBody(INPUT poMessages  AS LLMMessage EXTENT,
                                               INPUT piMaxTokens AS INTEGER):
 
-        DEFINE VARIABLE cJson       AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cSystem     AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE i           AS INTEGER   NO-UNDO.
-        DEFINE VARIABLE iLast       AS INTEGER   NO-UNDO.
-        DEFINE VARIABLE lFirstMsg   AS LOGICAL   NO-UNDO INITIAL TRUE.
+        DEFINE VARIABLE cJson     AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cSystem   AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE i         AS INTEGER   NO-UNDO.
+        DEFINE VARIABLE iLast     AS INTEGER   NO-UNDO.
+        DEFINE VARIABLE lFirstMsg AS LOGICAL   NO-UNDO INITIAL TRUE.
 
         iLast = EXTENT(poMessages).
 
-        /* Extract system message (role = "system") */
         DO i = 1 TO iLast:
             IF poMessages[i]:Role = "system" THEN DO:
                 cSystem = THIS-OBJECT:EscapeJson(poMessages[i]:Content).

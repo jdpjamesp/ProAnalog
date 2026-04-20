@@ -14,7 +14,7 @@ CLASS LogDetector.LogFormatRegistry:
 
     DEFINE PRIVATE TEMP-TABLE ttFormat NO-UNDO
         FIELD iSeq   AS INTEGER
-        FIELD oFormat AS CLASS LogFormat
+        FIELD oFormat AS CLASS Progress.Lang.Object
         INDEX ixSeq IS PRIMARY UNIQUE iSeq.
 
     DEFINE PRIVATE VARIABLE iNext AS INTEGER NO-UNDO INITIAL 0.
@@ -45,7 +45,7 @@ CLASS LogDetector.LogFormatRegistry:
 
         FOR EACH ttFormat NO-LOCK BY ttFormat.iSeq:
             i = i + 1.
-            oResult[i] = ttFormat.oFormat.
+            oResult[i] = CAST(ttFormat.oFormat, LogFormat).
         END.
 
         RETURN oResult.
@@ -73,7 +73,7 @@ CLASS LogDetector.LogFormatRegistry:
             "component in square brackets. Entries may span multiple lines for stack traces. " +
             "This log records application server lifecycle events, session activity, " +
             "deployment messages, OpenEdge agent startup/shutdown, and unhandled errors.",
-            "^\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}\.\d{3} (SEVERE|WARNING|INFO|CONFIG|FINE|FINER|FINEST)"
+            "^\d\d-[A-Za-z][A-Za-z][A-Za-z]-\d\d\d\d \d\d:\d\d:\d\d\.\d\d\d (SEVERE|WARNING|INFO|CONFIG|FINE|FINER|FINEST)"
         )).
 
         /* ----------------------------------------------------------------
@@ -91,7 +91,7 @@ CLASS LogDetector.LogFormatRegistry:
             "user-agent string. A status of 200 means success; 404 means not found; 500 means " +
             "server error. This log is used to analyse web traffic, endpoint usage, error rates, " +
             "and performance (response sizes) for the OpenEdge application server.",
-            "^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3} \S+ \S+ \[\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2} [+\-]\d{4}\]"
+            "^\d+\.\d+\.\d+\.\d+ \S+ \S+ \[\d\d/[A-Za-z][A-Za-z][A-Za-z]/\d\d\d\d:\d\d:\d\d:\d\d [+-]\d\d\d\d\]"
         )).
 
         /* ----------------------------------------------------------------
@@ -110,7 +110,7 @@ CLASS LogDetector.LogFormatRegistry:
             "shutdown, connection events, and ABL procedure execution errors. " +
             "This is a legacy format predating PASOE and is associated with the classic " +
             "WebSpeed web object runner (WOB) environment.",
-            "^\[\d{2}/\d{2}/\d{2}[@\s]\d{2}:\d{2}:\d{2}\]"
+            "^\[\d\d/\d\d/\d\d[@\s]\d\d:\d\d:\d\d\]"
         )).
 
         /* ----------------------------------------------------------------
@@ -130,7 +130,7 @@ CLASS LogDetector.LogFormatRegistry:
             "usage, buffer pool activity, database errors, and administrative operations. " +
             "Message codes in parentheses (e.g. (333), (2809)) can be looked up in the " +
             "OpenEdge Database Administration guide.",
-            "^\[\d{4}/\d{2}/\d{2}@\d{2}:\d{2}:\d{2}\.\d{3}[+\-]\d{4}\]"
+            "^\[\d\d\d\d/\d\d/\d\d@\d\d:\d\d:\d\d\.\d\d\d[+-]\d\d\d\d\]"
         )).
 
     END METHOD.
