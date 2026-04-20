@@ -96,11 +96,53 @@
     .drop-zone {
       border: 2px dashed #2d3148;
       border-radius: 8px;
-      padding: 4px;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, background 0.15s;
     }
 
-    .drop-zone.dragover { border-color: #6366f1; }
+    .drop-zone.dragover {
+      border-color: #6366f1;
+      background: rgba(99,102,241,0.06);
+    }
+
+    .drop-target {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 16px;
+      cursor: default;
+      color: #64748b;
+      font-size: 13px;
+      border-bottom: 1px solid #2d3148;
+      user-select: none;
+    }
+
+    .drop-target .drop-icon { font-size: 20px; }
+
+    .drop-target strong { color: #94a3b8; }
+
+    .browse-btn {
+      flex-shrink: 0;
+      margin-left: auto;
+      padding: 6px 14px;
+      background: #2d3148;
+      border: 1px solid #3d4168;
+      border-radius: 6px;
+      color: #c7d2fe;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    .browse-btn:hover { background: #383d5a; }
+
+    .path-note {
+      padding: 6px 14px 10px;
+      font-size: 11px;
+      color: #475569;
+    }
 
     .btn {
       width: 100%;
@@ -185,10 +227,18 @@
     <div class="field">
       <label>Log File Paths</label>
       <div class="drop-zone" id="dropZone">
+        <div class="drop-target">
+          <span class="drop-icon">&#128229;</span>
+          <span><strong>Drag files here</strong> from Windows Explorer to fill paths automatically</span>
+          <button class="browse-btn" onclick="document.getElementById('filePicker').click()">Browse&hellip;</button>
+          <input type="file" id="filePicker" multiple accept=".log,.txt,.out" style="display:none">
+        </div>
         <textarea id="filePaths" rows="4"
           placeholder="C:\path\to\logfile.log&#10;C:\path\to\another.log"></textarea>
+        <div class="path-note">
+          &#9432; Drag from Explorer fills full paths automatically. Browse only provides filenames &mdash; complete the folder path manually if needed.
+        </div>
       </div>
-      <p class="hint">One path per line. On Windows, drag files from Explorer into this box to auto-fill paths.</p>
     </div>
 
     <div class="field">
@@ -230,8 +280,22 @@
       dropZone.classList.add('dragover');
     });
 
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('dragover');
+    dropZone.addEventListener('dragleave', e => {
+      if (!dropZone.contains(e.relatedTarget)) {
+        dropZone.classList.remove('dragover');
+      }
+    });
+
+    // File picker — fills filenames; user may need to complete folder path
+    document.getElementById('filePicker').addEventListener('change', function () {
+      const names = Array.from(this.files).map(f => f.name);
+      if (!names.length) return;
+      filePathsTA.value = names.join('\n');
+      const status = document.getElementById('status');
+      status.style.color = '#f59e0b';
+      status.textContent =
+        'Filenames added — if the folder path is not already shown, complete each line with the full path.';
+      this.value = '';  // reset so the same file can be re-selected
     });
 
     dropZone.addEventListener('drop', e => {
@@ -256,6 +320,7 @@
 
     function generate() {
       const status = document.getElementById('status');
+      status.style.color = '#f87171';
       status.textContent = '';
 
       const raw = filePathsTA.value;
