@@ -91,7 +91,7 @@ CLASS LogDetector.LogFormatRegistry:
             "user-agent string. A status of 200 means success; 404 means not found; 500 means " +
             "server error. This log is used to analyse web traffic, endpoint usage, error rates, " +
             "and performance (response sizes) for the OpenEdge application server.",
-            "^\d+\.\d+\.\d+\.\d+ \S+ \S+ \[\d\d/[A-Za-z][A-Za-z][A-Za-z]/\d\d\d\d:\d\d:\d\d:\d\d [+-]\d\d\d\d\]"
+            "^\d+\.\d+\.\d+\.\d+ \S+( \S+)? \[\d\d/[A-Za-z][A-Za-z][A-Za-z]/\d\d\d\d:\d\d:\d\d:\d\d [+-]\d\d\d\d\]"
         )).
 
         /* ----------------------------------------------------------------
