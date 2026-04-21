@@ -95,6 +95,28 @@ CLASS LogDetector.LogFormatRegistry:
         )).
 
         /* ----------------------------------------------------------------
+           Classic AppServer Broker/Agent Log
+           Registered BEFORE WebSpeed: both share the [MM/DD/YY...] timestamp
+           format so AppServer is identified first by its unique identifiers.
+           Example:  [04/16/25@08:23:11] (AsBroker-1): Broker startup complete
+                     [04/16/25@08:23:11] (AsAgent-1-12345): Agent connected
+        ---------------------------------------------------------------- */
+        THIS-OBJECT:Register(NEW LogFormat(
+            "Classic AppServer Log",
+            "This is a Progress OpenEdge Classic AppServer broker and agent log " +
+            "(not PASOE). The log records activity for the traditional 4GL AppServer " +
+            "environment used to host ABL business logic for client/server and web " +
+            "service deployments. Broker log entries contain process identifiers such " +
+            "as (AsBroker-N) or (AsAgent-N). The log captures broker startup and " +
+            "shutdown, agent pool sizing and management, client connection and " +
+            "disconnection events, request routing and queuing, ABL procedure " +
+            "execution, and agent-level errors or crashes. Agent counts, queue depths, " +
+            "and connection timeouts in this log are key indicators of capacity and " +
+            "performance issues.",
+            "AsBroker|AsAgent|AppServer Broker|AppServer Agent"
+        )).
+
+        /* ----------------------------------------------------------------
            Classic WebSpeed Transaction Server Log
            Lines begin with a bracketed date/time and process info.
            Example:  [04/16/25 08:23:11] msgsrv: ...
@@ -131,6 +153,125 @@ CLASS LogDetector.LogFormatRegistry:
             "Message codes in parentheses (e.g. (333), (2809)) can be looked up in the " +
             "OpenEdge Database Administration guide.",
             "^\[\d\d\d\d/\d\d/\d\d@\d\d:\d\d:\d\d\.\d\d\d[+-]\d\d\d\d\]"
+        )).
+
+        /* ----------------------------------------------------------------
+           OpenEdge AdminServer Log (admserv.log)
+           Records activity for the OpenEdge Administration Server and
+           NameServer, which manage database and application server instances.
+           Example:  [2025/04/16@08:23:11.456+0000] AdminServer started
+        ---------------------------------------------------------------- */
+        THIS-OBJECT:Register(NEW LogFormat(
+            "OpenEdge AdminServer Log",
+            "This is a Progress OpenEdge Administration Server log (typically admserv.log). " +
+            "The AdminServer manages OpenEdge databases, AppServer brokers, and other " +
+            "server resources on a host. It works alongside the NameServer (or NSALIAS) " +
+            "which provides service location for clients. This log records AdminServer " +
+            "and NameServer startup and shutdown, registration and deregistration of " +
+            "managed servers, health check activity, port assignments, and administrative " +
+            "commands issued via the OpenEdge Management console or command-line tools. " +
+            "Errors here often indicate configuration issues, port conflicts, or " +
+            "connectivity problems between managed components.",
+            "AdminServer|NameServer|NSALIAS|Name Server"
+        )).
+
+        /* ----------------------------------------------------------------
+           OpenEdge ProDataServer Log
+           Records activity for the DataServer connecting OpenEdge to
+           non-Progress databases (ODBC, MS SQL Server, Oracle).
+           Example:  [04/16/25@08:23:11] (DataServer-1): Schema connection established
+        ---------------------------------------------------------------- */
+        THIS-OBJECT:Register(NEW LogFormat(
+            "OpenEdge ProDataServer Log",
+            "This is a Progress OpenEdge ProDataServer log. The ProDataServer provides " +
+            "connectivity between OpenEdge ABL applications and non-Progress databases " +
+            "such as Microsoft SQL Server (MSS DataServer), Oracle (Oracle DataServer), " +
+            "or ODBC data sources. This log records DataServer broker and agent startup " +
+            "and shutdown, schema holder connections, query translations, connection " +
+            "pooling, and errors encountered when mapping between the OpenEdge data " +
+            "model and the foreign database. Connection failures, schema mismatches, and " +
+            "SQL translation errors are the most common issues to investigate.",
+            "DataServer|ODBC DataServer|MSS DataServer|Oracle DataServer"
+        )).
+
+        /* ----------------------------------------------------------------
+           OpenEdge Replication Log
+           Records activity for OpenEdge database replication (target/source).
+           Example:  [2025/04/16@08:23:11.456+0000] Replication Target: transition to primary
+        ---------------------------------------------------------------- */
+        THIS-OBJECT:Register(NEW LogFormat(
+            "OpenEdge Replication Log",
+            "This is a Progress OpenEdge database replication log. OpenEdge replication " +
+            "maintains a synchronised copy of a database (the replication target) from a " +
+            "primary source database. This log records replication agent startup and " +
+            "shutdown, synchronisation state transitions (e.g. transitioning to primary " +
+            "after failover), after-image (AI) file processing, connection status between " +
+            "source and target, lag indicators, and replication errors. Key events to " +
+            "look for include state transitions, AI sequence gaps, connection interruptions, " +
+            "and any messages indicating the target has fallen behind the source.",
+            "[Rr]eplication [Tt]arget|[Rr]eplication [Ss]ource|[Rr]eplication [Aa]gent|transition to primary|transition to target"
+        )).
+
+        /* ----------------------------------------------------------------
+           OpenEdge Management / OpenEdge Explorer Log
+           Java-based management infrastructure log.
+           Example:  2025-04-16 08:23:11,456 INFO  [com.openedge.oem] - ...
+        ---------------------------------------------------------------- */
+        THIS-OBJECT:Register(NEW LogFormat(
+            "OpenEdge Management Log",
+            "This is a Progress OpenEdge Management (OEM) or OpenEdge Explorer log. " +
+            "OpenEdge Management is the Java-based infrastructure used to monitor and " +
+            "manage OpenEdge servers, databases, and application components. The log " +
+            "uses a Java log4j-style format with timestamps, severity levels, and " +
+            "component class names. It records management agent activity, monitored " +
+            "resource status changes, alert generation, trend data collection, and " +
+            "communication between the management console and managed nodes. Errors " +
+            "here typically indicate connectivity issues between the management " +
+            "infrastructure and the components it monitors.",
+            "OpenEdge Management|oemanager|OEM Agent|com\.openedge\.oem|com\.openedge\.oe\.management"
+        )).
+
+        /* ----------------------------------------------------------------
+           Progress Developer Studio (PDSOE) Log
+           Eclipse-based IDE error log format.
+           Example:  !SESSION 2025-04-16 08:23:11.456 -------
+                     !ENTRY com.openedge.pdt.core 4 0 2025-04-16 08:23:11.456
+        ---------------------------------------------------------------- */
+        THIS-OBJECT:Register(NEW LogFormat(
+            "Progress Developer Studio Log",
+            "This is a Progress Developer Studio for OpenEdge (PDSOE) log, generated " +
+            "by the Eclipse-based IDE. The log follows the standard Eclipse error log " +
+            "format: sessions are delimited by !SESSION headers, and individual entries " +
+            "use !ENTRY (component, severity, code, timestamp), !MESSAGE (description), " +
+            "and !STACK (stack trace) markers. Severity codes are: 0=OK, 1=INFO, " +
+            "2=WARNING, 4=ERROR. Component names beginning with com.openedge or " +
+            "com.progress identify OpenEdge-specific plugins. This log is most useful " +
+            "for diagnosing IDE crashes, plugin errors, build failures, and ABL " +
+            "Language Server issues.",
+            "^!SESSION \d\d\d\d-\d\d-\d\d|^!ENTRY com\.openedge|^!ENTRY com\.progress"
+        )).
+
+        /* ----------------------------------------------------------------
+           Windows Event Log (text export)
+           Exported from Windows Event Viewer or PowerShell Get-WinEvent.
+           Example:  Log Name:      Application
+                     Source:        Progress OpenEdge
+                     Event ID:      1000
+        ---------------------------------------------------------------- */
+        THIS-OBJECT:Register(NEW LogFormat(
+            "Windows Event Log",
+            "This is a Windows Event Log exported in text format, typically from " +
+            "Windows Event Viewer or via PowerShell (Get-WinEvent | Format-List). " +
+            "Each event record contains fields including Log Name, Source, Date/Time, " +
+            "Event ID, Task Category, Level (Information/Warning/Error/Critical), " +
+            "Keywords, User, Computer, and a Description containing the event message. " +
+            "Records may be from any Windows event channel (Application, System, " +
+            "Security, or custom OpenEdge channels). When analysing, the Source field " +
+            "identifies the application that logged the event, the Event ID identifies " +
+            "the specific event type, and the Description contains the detail. " +
+            "OpenEdge-related entries often appear under Source values such as " +
+            "'Progress OpenEdge' or the specific server component name.",
+            "^Log Name:\s+\S|^Source:\s+\S|^Event\[\d+\]:"
         )).
 
     END METHOD.

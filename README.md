@@ -1,6 +1,10 @@
 # ProAnalog
 
-ProAnalog is a Progress OpenEdge ABL application that allows you to load OpenEdge log files and analyse them using an LLM (Large Language Model) of your choice. ProAnalog automatically detects the log format and provides the LLM with the context it needs, so you can ask questions like _"what was my application doing at 08:30?"_ without explaining the log structure every time.
+> **Note:** ProAnalog is a proof-of-concept application, developed as a demonstration of LLM integration with Progress OpenEdge ABL. It is not production-ready software. Not all log format detections have been fully tested. Contributions are welcome via pull request.
+
+ProAnalog is a Progress OpenEdge ABL application that analyses OpenEdge log files using a Large Language Model (LLM) of your choice. It is aimed at OpenEdge developers and administrators who want to quickly make sense of unfamiliar or complex log output without manually reading through thousands of lines.
+
+ProAnalog automatically detects the log format and provides the LLM with the relevant context, so you can ask plain-English questions like _"what was my application doing at 08:30?"_ or _"list all errors between 09:00 and 09:30"_ without explaining the log structure each time. It supports multiple log files in a single session, large file chunking, and follow-up questions that maintain full conversation history.
 
 ## Supported Log Formats
 
@@ -10,8 +14,15 @@ ProAnalog automatically detects the following log types:
 |---|---|
 | PASOE Tomcat Application Log | `catalina.out`, `localhost.yyyy-mm-dd.log` |
 | PASOE Tomcat Access Log | `access_log.yyyy-mm-dd.txt` |
+| Classic AppServer Log | `broker.log`, `appserver.log` |
 | Classic WebSpeed Log | `*.log` (WebSpeed broker/agent) |
 | OpenEdge Database Log | `dbname.lg` |
+| OpenEdge AdminServer Log | `admserv.log` |
+| OpenEdge ProDataServer Log | `*.log` (DataServer broker/agent) |
+| OpenEdge Replication Log | `*.log` (replication target/source) |
+| OpenEdge Management Log | OEM/OpenEdge Explorer log |
+| Progress Developer Studio Log | `.log` (Eclipse IDE error log) |
+| Windows Event Log | Text export from Event Viewer / PowerShell |
 
 If the format cannot be determined, ProAnalog will still send the file with a generic context prompt.
 
@@ -47,7 +58,7 @@ Edit `ProAnalog\Config\proanalog.json`:
     "baseUrl":        "https://api.openai.com/v1",
     "model":          "gpt-4o",
     "maxTokens":      4096,
-    "chunkSizeChars": 80000
+    "chunkSizeChars": 800000
 }
 ```
 
@@ -89,10 +100,12 @@ Follow-up prompts carry the full conversation history — the LLM remembers ever
 
 ```json
 {
-    "provider":  "openai",
-    "apiKey":    "sk-...",
-    "baseUrl":   "https://api.openai.com/v1",
-    "model":     "gpt-4o"
+    "provider":       "openai",
+    "apiKey":         "sk-...",
+    "baseUrl":        "https://api.openai.com/v1",
+    "model":          "gpt-4o",
+    "maxTokens":      4096,
+    "chunkSizeChars": 800000
 }
 ```
 
@@ -100,10 +113,12 @@ Follow-up prompts carry the full conversation history — the LLM remembers ever
 
 ```json
 {
-    "provider":  "azure",
-    "apiKey":    "YOUR_AZURE_KEY",
-    "baseUrl":   "https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT",
-    "model":     "gpt-4o"
+    "provider":       "azure",
+    "apiKey":         "YOUR_AZURE_KEY",
+    "baseUrl":        "https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT",
+    "model":          "gpt-4o",
+    "maxTokens":      4096,
+    "chunkSizeChars": 800000
 }
 ```
 
@@ -111,10 +126,12 @@ Follow-up prompts carry the full conversation history — the LLM remembers ever
 
 ```json
 {
-    "provider":  "anthropic",
-    "apiKey":    "sk-ant-...",
-    "baseUrl":   "https://api.anthropic.com/v1",
-    "model":     "claude-sonnet-4-6"
+    "provider":       "anthropic",
+    "apiKey":         "sk-ant-...",
+    "baseUrl":        "https://api.anthropic.com/v1",
+    "model":          "claude-sonnet-4-6",
+    "maxTokens":      4096,
+    "chunkSizeChars": 800000
 }
 ```
 
@@ -137,10 +154,12 @@ Gemini API keys are free to obtain from [Google AI Studio](https://aistudio.goog
 
 ```json
 {
-    "provider":  "ollama",
-    "apiKey":    "ollama",
-    "baseUrl":   "http://localhost:11434/v1",
-    "model":     "llama3"
+    "provider":       "ollama",
+    "apiKey":         "ollama",
+    "baseUrl":        "http://localhost:11434/v1",
+    "model":          "llama3",
+    "maxTokens":      4096,
+    "chunkSizeChars": 800000
 }
 ```
 
@@ -211,3 +230,7 @@ Then pass an instance of `MyRegistry` to `LogDetectorService`:
 ```abl
 oDetector = NEW LogDetector.LogDetectorService(NEW MyRegistry()).
 ```
+
+## Licence
+
+MIT — see [LICENSE](LICENSE) for details.

@@ -33,6 +33,7 @@ DEFINE VARIABLE cBaseDir      AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cInputPath    AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cOutputPath   AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cTemplatePath AS CHARACTER           NO-UNDO.
+DEFINE VARIABLE cBackup       AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cMode         AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cPrompt       AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cFilePaths    AS CHARACTER           NO-UNDO.
@@ -42,6 +43,8 @@ DEFINE VARIABLE cJson         AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cFilePath     AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cLine         AS LONGCHAR            NO-UNDO.
 DEFINE VARIABLE i             AS INTEGER             NO-UNDO.
+
+SESSION:ERROR-STACK-TRACE = TRUE.
 
 /* ------------------------------------------------------------------ */
 /* Path resolution                                                     */
@@ -55,6 +58,12 @@ cBaseDir = System.IO.Path:GetDirectoryName(
 cInputPath    = System.IO.Path:Combine(cBaseDir, "input.json").
 cOutputPath   = System.IO.Path:Combine(cBaseDir, "output.html").
 cTemplatePath = System.IO.Path:Combine(cBaseDir, "output.template.html").
+
+/* DEBUG — remove before release */
+MESSAGE "PROPATH:  " PROPATH SKIP
+        "BaseDir:  " cBaseDir SKIP
+        "Input:    " cInputPath SKIP
+        "Template: " cTemplatePath.
 
 /* ------------------------------------------------------------------ */
 /* Read and parse input.json                                           */
@@ -128,13 +137,30 @@ cHistoryJson = oSession:GetHistoryJson().
 cHistoryJson = REPLACE(cHistoryJson, "</script>", "<\/script>").
 
 /* ------------------------------------------------------------------ */
-/* Write output.html from template                                     */
+/* Back up any existing output.html, then write the new one           */
 /* ------------------------------------------------------------------ */
+
+IF System.IO.File:Exists(cOutputPath) THEN DO:
+    cBackup = System.IO.Path:Combine(cBaseDir,
+        "output_" +
+        STRING(YEAR(TODAY),                  "9999") +
+        REPLACE(STRING(MONTH(TODAY),          "99"), " ", "0") +
+        REPLACE(STRING(DAY(TODAY),            "99"), " ", "0") + "_" +
+        REPLACE(STRING(TIME / 3600,           "99"), " ", "0") +
+        REPLACE(STRING((TIME MOD 3600) / 60,  "99"), " ", "0") +
+        REPLACE(STRING(TIME MOD 60,           "99"), " ", "0") +
+        ".html").
+    System.IO.File:Copy(cOutputPath, cBackup).
+    MESSAGE "Previous output saved as"
+            System.IO.Path:GetFileName(cBackup).
+END.
 
 FILE-INFO:FILE-NAME = cTemplatePath.
 IF FILE-INFO:FULL-PATHNAME = ? THEN
     UNDO, THROW NEW Progress.Lang.AppError(
         SUBSTITUTE("Template not found: &1", cTemplatePath), 0).
+
+MESSAGE "Writing output.html ...".
 
 oReader = NEW StreamReader(cTemplatePath, System.Text.Encoding:UTF8).
 oWriter = NEW StreamWriter(cOutputPath, FALSE, System.Text.Encoding:UTF8).
@@ -161,6 +187,10 @@ DO ON ERROR UNDO:
                 "~nPlease open it manually:" cOutputPath.
     END CATCH.
 END.
+
+CATCH oErr AS Progress.Lang.Error:
+    MESSAGE "ProAnalog error: " + oErr:GetMessage(1) SKIP oErr:CallStack.
+END CATCH.
 
 /* ------------------------------------------------------------------ */
 /* Internal function: escape a string for a JS double-quoted literal  */

@@ -4,6 +4,7 @@ Config/proanalog.json
 # Generated runtime files
 input.json
 output.html
+output_*.html
 
 # Claude Code instructions (local developer tooling)
 CLAUDE.md

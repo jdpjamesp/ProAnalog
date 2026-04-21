@@ -103,6 +103,8 @@ CLASS Session.ConversationSession:
             IF cPath = "" THEN NEXT.
 
             oFmt = oDetector:DetectFormat(cPath).
+            MESSAGE "Reading " + System.IO.Path:GetFileName(cPath)
+                    + " (" + oFmt:Name + ") ...".
 
             CREATE ttFile.
             ASSIGN
@@ -132,6 +134,8 @@ CLASS Session.ConversationSession:
             FIND FIRST ttFile WHERE ttFile.cPath = cPath NO-LOCK NO-ERROR.
 
             iChunks = oChunker:ChunkFile(cPath).
+            IF iChunks > 1 THEN
+                MESSAGE "  " + STRING(iChunks) + " chunks.".
 
             IF iChunks = 1 THEN DO:
                 THIS-OBJECT:AppendMessage("user",
