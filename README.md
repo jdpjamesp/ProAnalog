@@ -1,5 +1,7 @@
 # ProAnalog
 
+![ProAnalog Logo](proanalog-logo.png)
+
 > **Note:** ProAnalog is a proof-of-concept application, developed as a demonstration of LLM integration with Progress OpenEdge ABL. It is not production-ready software. Not all log format detections have been fully tested. Contributions are welcome via pull request.
 
 ProAnalog is a Progress OpenEdge ABL application that analyses OpenEdge log files using a Large Language Model (LLM) of your choice. It is aimed at OpenEdge developers and administrators who want to quickly make sense of unfamiliar or complex log output without manually reading through thousands of lines.
