@@ -39,7 +39,7 @@ DEFINE VARIABLE cPrompt       AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cFilePaths    AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cResponse     AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cHistoryJson  AS LONGCHAR            NO-UNDO.
-DEFINE VARIABLE cJson         AS CHARACTER           NO-UNDO.
+DEFINE VARIABLE cJson         AS LONGCHAR            NO-UNDO.
 DEFINE VARIABLE cFilePath     AS CHARACTER           NO-UNDO.
 DEFINE VARIABLE cLine         AS LONGCHAR            NO-UNDO.
 DEFINE VARIABLE i             AS INTEGER             NO-UNDO.
@@ -83,6 +83,7 @@ oReader:Close().
 oReader = ?.
 
 cJson   = oSb:ToString().
+FIX-CODEPAGE(cJson) = "UTF-8".
 oParser = NEW ObjectModelParser().
 oDoc    = CAST(oParser:Parse(cJson), JsonObject).
 
