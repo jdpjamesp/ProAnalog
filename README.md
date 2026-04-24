@@ -58,6 +58,7 @@ Edit `ProAnalog\Config\proanalog.json`:
     "baseUrl":        "https://api.openai.com/v1",
     "model":          "gpt-4o",
     "maxTokens":      4096,
+    "timeoutSeconds": 120,
     "chunkSizeChars": 800000
 }
 ```
