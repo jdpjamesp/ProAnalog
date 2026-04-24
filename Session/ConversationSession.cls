@@ -278,7 +278,7 @@ CLASS Session.ConversationSession:
             oMsg = CAST(poHistory:GetJsonObject(i), JsonObject).
             THIS-OBJECT:AppendMessage(
                 oMsg:GetCharacter("role"),
-                oMsg:GetCharacter("content")).
+                oMsg:GetLongChar("content")).
         END.
 
         IsLoaded = TRUE.

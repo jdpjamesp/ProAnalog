@@ -82,8 +82,8 @@ END.
 oReader:Close().
 oReader = ?.
 
-cJson   = oSb:ToString().
 FIX-CODEPAGE(cJson) = "UTF-8".
+cJson   = oSb:ToString().
 oParser = NEW ObjectModelParser().
 oDoc    = CAST(oParser:Parse(cJson), JsonObject).
 
