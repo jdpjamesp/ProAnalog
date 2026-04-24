@@ -172,6 +172,7 @@ Gemini API keys are free to obtain from [Google AI Studio](https://aistudio.goog
 | `baseUrl` | Base URL of the API endpoint | `https://api.openai.com/v1` |
 | `model` | Model name to use | `gpt-4o` |
 | `maxTokens` | Maximum tokens in the LLM response | `4096` |
+| `timeoutSeconds` | Timeout for API requests in seconds | `120` |
 | `chunkSizeChars` | Max characters per log chunk (~4 chars per token) | `80000` |
 
 ### Tips
@@ -180,6 +181,7 @@ Gemini API keys are free to obtain from [Google AI Studio](https://aistudio.goog
 - For large files, ProAnalog automatically splits the content into chunks and sends each as a separate message.
 - Be specific in your questions: _"List all HTTP 500 errors between 09:00 and 09:30"_ will get better results than _"show me errors"_.
 - Providers with large context windows (e.g. Gemini 2.5 Flash) benefit from a higher `chunkSizeChars` to reduce the number of API calls.
+- If you encounter timeout errors on slow connections, increase `timeoutSeconds` in your config. Large files with complex questions may require longer timeouts.
 
 ## Project Structure
 
@@ -196,6 +198,7 @@ ProAnalog\
   LLM\
     ILLMProvider.cls            Provider interface
     LLMMessage.cls              Message data class (role + content)
+    WebClientWithTimeout.cls    WebClient subclass with configurable timeout
     OpenAIProvider.cls          OpenAI / Azure / Ollama / OpenAI-compatible implementation
     AnthropicProvider.cls       Anthropic (Claude) implementation
     LLMProviderFactory.cls      Instantiates the correct provider from config
