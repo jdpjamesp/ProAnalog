@@ -23,16 +23,19 @@ CLASS LLM.OpenAIProvider IMPLEMENTS ILLMProvider:
     DEFINE PRIVATE VARIABLE cApiKey  AS CHARACTER  NO-UNDO.
     DEFINE PRIVATE VARIABLE cModel   AS CHARACTER  NO-UNDO.
     DEFINE PRIVATE VARIABLE oClient  AS WebClient  NO-UNDO.
+    DEFINE PRIVATE VARIABLE iTimeout AS INTEGER    NO-UNDO.
 
     /*--------------------------------------------------------------------*/
 
     CONSTRUCTOR PUBLIC OpenAIProvider(INPUT pcBaseUrl AS CHARACTER,
                                       INPUT pcApiKey  AS CHARACTER,
-                                      INPUT pcModel   AS CHARACTER):
+                                      INPUT pcModel   AS CHARACTER,
+                                      INPUT piTimeoutSeconds AS INTEGER):
         cBaseUrl = pcBaseUrl.
         cApiKey  = pcApiKey.
         cModel   = pcModel.
-        oClient  = NEW WebClient().
+        iTimeout = piTimeoutSeconds.
+        oClient  = NEW WebClientWithTimeout(piTimeoutSeconds).
         oClient:Encoding = System.Text.Encoding:UTF8.
     END CONSTRUCTOR.
 
@@ -64,16 +67,28 @@ CLASS LLM.OpenAIProvider IMPLEMENTS ILLMProvider:
                 DEFINE VARIABLE oHttpResp   AS System.Net.HttpWebResponse     NO-UNDO.
                 DEFINE VARIABLE cErrBody    AS CHARACTER                      NO-UNDO.
                 DEFINE VARIABLE cStatus     AS CHARACTER                      NO-UNDO.
-                IF VALID-OBJECT(oEx:Response) THEN DO:
-                    oHttpResp  = CAST(oEx:Response, System.Net.HttpWebResponse).
-                    cStatus    = oHttpResp:StatusDescription.
-                    oErrReader = NEW StreamReader(oEx:Response:GetResponseStream()).
-                    cErrBody   = oErrReader:ReadToEnd().
+                DEFINE VARIABLE cMessage    AS CHARACTER                      NO-UNDO.
+
+                /* Check if this is a timeout */
+                IF oEx:Status = System.Net.WebExceptionStatus:Timeout OR
+                   oEx:InnerException:GetType():Name = "OperationCanceledException" THEN
+                    cMessage = SUBSTITUTE(
+                        "OpenAI API request timed out after &1 seconds. " +
+                        "Consider increasing timeoutSeconds in proanalog.json or checking your connection.",
+                        iTimeout).
+                ELSE DO:
+                    IF VALID-OBJECT(oEx:Response) THEN DO:
+                        oHttpResp  = CAST(oEx:Response, System.Net.HttpWebResponse).
+                        cStatus    = oHttpResp:StatusDescription.
+                        oErrReader = NEW StreamReader(oEx:Response:GetResponseStream()).
+                        cErrBody   = oErrReader:ReadToEnd().
+                    END.
+                    ELSE
+                        cStatus = oEx:Message.
+                    cMessage = "OpenAI API error [" + cStatus + "]: " + cErrBody.
                 END.
-                ELSE
-                    cStatus = oEx:Message.
-                UNDO, THROW NEW Progress.Lang.AppError(
-                    "OpenAI API error [" + cStatus + "]: " + cErrBody, 0).
+
+                UNDO, THROW NEW Progress.Lang.AppError(cMessage, 0).
             END CATCH.
         END.
 

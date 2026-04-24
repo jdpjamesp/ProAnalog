@@ -30,16 +30,19 @@ CLASS LLM.AnthropicProvider IMPLEMENTS ILLMProvider:
     DEFINE PRIVATE VARIABLE cApiKey  AS CHARACTER  NO-UNDO.
     DEFINE PRIVATE VARIABLE cModel   AS CHARACTER  NO-UNDO.
     DEFINE PRIVATE VARIABLE oClient  AS WebClient  NO-UNDO.
+    DEFINE PRIVATE VARIABLE iTimeout AS INTEGER    NO-UNDO.
 
     /*--------------------------------------------------------------------*/
 
     CONSTRUCTOR PUBLIC AnthropicProvider(INPUT pcBaseUrl AS CHARACTER,
                                          INPUT pcApiKey  AS CHARACTER,
-                                         INPUT pcModel   AS CHARACTER):
+                                         INPUT pcModel   AS CHARACTER,
+                                         INPUT piTimeoutSeconds AS INTEGER):
         cBaseUrl = pcBaseUrl.
         cApiKey  = pcApiKey.
         cModel   = pcModel.
-        oClient  = NEW WebClient().
+        iTimeout = piTimeoutSeconds.
+        oClient  = NEW WebClientWithTimeout(piTimeoutSeconds).
         oClient:Encoding = System.Text.Encoding:UTF8.
     END CONSTRUCTOR.
 
@@ -68,9 +71,23 @@ CLASS LLM.AnthropicProvider IMPLEMENTS ILLMProvider:
             cResponse = oClient:UploadString(cEndpoint, "POST", cBody).
             CATCH oEx AS WebException:
                 DEFINE VARIABLE oErrReader AS StreamReader NO-UNDO.
-                oErrReader = NEW StreamReader(oEx:Response:GetResponseStream()).
-                UNDO, THROW NEW Progress.Lang.AppError(
-                    SUBSTITUTE("Anthropic API error: &1", oErrReader:ReadToEnd()), 0).
+                DEFINE VARIABLE cMessage   AS CHARACTER    NO-UNDO.
+
+                /* Check if this is a timeout */
+                IF oEx:Status = System.Net.WebExceptionStatus:Timeout OR
+                   oEx:InnerException:GetType():Name = "OperationCanceledException" THEN
+                    cMessage = SUBSTITUTE(
+                        "Anthropic API request timed out after &1 seconds. " +
+                        "Consider increasing timeoutSeconds in proanalog.json or checking your connection.",
+                        iTimeout).
+                ELSE DO:
+                    IF VALID-OBJECT(oEx:Response) THEN
+                        oErrReader = NEW StreamReader(oEx:Response:GetResponseStream()).
+                    cMessage = SUBSTITUTE("Anthropic API error: &1",
+                        IF VALID-OBJECT(oErrReader) THEN oErrReader:ReadToEnd() ELSE oEx:Message).
+                END.
+
+                UNDO, THROW NEW Progress.Lang.AppError(cMessage, 0).
             END CATCH.
         END.
 

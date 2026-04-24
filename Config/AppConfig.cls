@@ -37,6 +37,9 @@ CLASS Config.AppConfig:
     DEFINE PUBLIC PROPERTY MaxTokens AS INTEGER NO-UNDO
         GET. PRIVATE SET.
 
+    DEFINE PUBLIC PROPERTY TimeoutSeconds AS INTEGER NO-UNDO
+        GET. PRIVATE SET.
+
     DEFINE PUBLIC PROPERTY ChunkSizeChars AS INTEGER NO-UNDO
         GET. PRIVATE SET.
 
@@ -81,6 +84,7 @@ CLASS Config.AppConfig:
         THIS-OBJECT:BaseUrl        = THIS-OBJECT:GetString(oDoc, "baseUrl",         "https://api.openai.com/v1").
         THIS-OBJECT:Model          = THIS-OBJECT:GetString(oDoc, "model",           "gpt-4o").
         THIS-OBJECT:MaxTokens      = THIS-OBJECT:GetInt   (oDoc, "maxTokens",       4096).
+        THIS-OBJECT:TimeoutSeconds = THIS-OBJECT:GetInt   (oDoc, "timeoutSeconds",  120).
         THIS-OBJECT:ChunkSizeChars = THIS-OBJECT:GetInt   (oDoc, "chunkSizeChars",  80000).
 
     END METHOD.

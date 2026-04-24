@@ -25,13 +25,15 @@ CLASS LLM.LLMProviderFactory:
                 RETURN NEW OpenAIProvider(
                     poConfig:BaseUrl,
                     poConfig:ApiKey,
-                    poConfig:Model).
+                    poConfig:Model,
+                    poConfig:TimeoutSeconds).
 
             WHEN "anthropic" THEN
                 RETURN NEW AnthropicProvider(
                     poConfig:BaseUrl,
                     poConfig:ApiKey,
-                    poConfig:Model).
+                    poConfig:Model,
+                    poConfig:TimeoutSeconds).
 
             OTHERWISE
                 UNDO, THROW NEW Progress.Lang.AppError(
