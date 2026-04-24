@@ -105,6 +105,7 @@ Follow-up prompts carry the full conversation history — the LLM remembers ever
     "baseUrl":        "https://api.openai.com/v1",
     "model":          "gpt-4o",
     "maxTokens":      4096,
+    "timeoutSeconds": 120,
     "chunkSizeChars": 800000
 }
 ```
@@ -118,6 +119,7 @@ Follow-up prompts carry the full conversation history — the LLM remembers ever
     "baseUrl":        "https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT",
     "model":          "gpt-4o",
     "maxTokens":      4096,
+    "timeoutSeconds": 120,
     "chunkSizeChars": 800000
 }
 ```
@@ -131,6 +133,7 @@ Follow-up prompts carry the full conversation history — the LLM remembers ever
     "baseUrl":        "https://api.anthropic.com/v1",
     "model":          "claude-sonnet-4-6",
     "maxTokens":      4096,
+    "timeoutSeconds": 120,
     "chunkSizeChars": 800000
 }
 ```
@@ -146,6 +149,7 @@ Gemini API keys are free to obtain from [Google AI Studio](https://aistudio.goog
     "baseUrl":        "https://generativelanguage.googleapis.com/v1beta/openai",
     "model":          "gemini-2.5-flash",
     "maxTokens":      4096,
+    "timeoutSeconds": 120,
     "chunkSizeChars": 800000
 }
 ```
@@ -159,6 +163,7 @@ Gemini API keys are free to obtain from [Google AI Studio](https://aistudio.goog
     "baseUrl":        "http://localhost:11434/v1",
     "model":          "llama3",
     "maxTokens":      4096,
+    "timeoutSeconds": 120,
     "chunkSizeChars": 800000
 }
 ```
