@@ -1,18 +1,30 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
+import type { Session, Query, ChunkRef, ProviderConfig } from '../shared/types'
+import { IPC } from '../shared/types'
 
-const api = {}
-
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('api', api)
-  } catch (error) {
-    console.error(error)
-  }
-} else {
-  // @ts-ignore
-  window.electron = electronAPI
-  // @ts-ignore
-  window.api = api
+const api = {
+  sessions: {
+    list:   ():                                    Promise<Session[]>          => ipcRenderer.invoke(IPC.sessions.list),
+    get:    (id: number):                          Promise<Session | undefined> => ipcRenderer.invoke(IPC.sessions.get, id),
+    create: (data: { name: string; filename: string; filepath: string; file_size: number }): Promise<Session> =>
+                                                   ipcRenderer.invoke(IPC.sessions.create, data),
+    rename: (id: number, name: string):            Promise<void>               => ipcRenderer.invoke(IPC.sessions.rename, id, name),
+    delete: (id: number):                          Promise<void>               => ipcRenderer.invoke(IPC.sessions.delete, id),
+  },
+  queries: {
+    list:   (sessionId: number):                   Promise<Query[]>            => ipcRenderer.invoke(IPC.queries.list, sessionId),
+    create: (data: { session_id: number; question: string; answer: string; chunks_used: ChunkRef[]; tokens_used: number }): Promise<Query> =>
+                                                   ipcRenderer.invoke(IPC.queries.create, data),
+  },
+  settings: {
+    getAll: ():                                    Promise<Record<string, unknown>> => ipcRenderer.invoke(IPC.settings.getAll),
+    get:    <T>(key: string):                      Promise<T | null>            => ipcRenderer.invoke(IPC.settings.get, key),
+    set:    (key: string, value: unknown):         Promise<void>               => ipcRenderer.invoke(IPC.settings.set, key, value),
+    getProvider: ():                               Promise<ProviderConfig | null> => ipcRenderer.invoke(IPC.settings.get, 'provider'),
+    setProvider: (config: ProviderConfig):         Promise<void>               => ipcRenderer.invoke(IPC.settings.set, 'provider', config),
+  },
 }
+
+contextBridge.exposeInMainWorld('api', api)
+
+export type Api = typeof api

@@ -1,6 +1,8 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { initDb } from './db/index'
+import { registerIpcHandlers } from './ipc/index'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -39,6 +41,8 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  initDb()
+  registerIpcHandlers()
   createWindow()
 
   app.on('activate', () => {
