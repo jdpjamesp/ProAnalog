@@ -405,33 +405,70 @@ function CtxStat({ label, value, accent }: { label: string; value: string; accen
 function SettingsView() {
   return (
     <>
-      <PanelHeader title="Settings" subtitle="LLM provider configuration" />
+      <PanelHeader title="Settings" subtitle="LLM provider and ingestion configuration" />
       <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 640 }}>
-        <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>
-            Default Provider
+
+        {/* Provider */}
+        <SettingsCard title="LLM Provider">
+          <SettingsField label="Label" placeholder="e.g. Gemini via OpenAI compat" />
+          <SettingsField label="Base URL" placeholder="https://api.openai.com/v1" />
+          <SettingsField label="API Key" type="password" />
+          <SettingsField label="Chat Model" placeholder="e.g. gemini-2.5-flash" />
+          <SettingsField label="Embedding Model" placeholder="e.g. text-embedding-3-small" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <SettingsField label="Temperature" placeholder="0.2" />
+            <SettingsField label="Max Tokens" placeholder="4096" />
           </div>
-          <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {['Label', 'Base URL', 'API Key', 'Chat Model', 'Embedding Model'].map((f) => (
-              <div key={f}>
-                <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>{f}</label>
-                <input
-                  type={f === 'API Key' ? 'password' : 'text'}
-                  placeholder={f === 'Base URL' ? 'https://api.openai.com/v1' : ''}
-                  style={{
-                    width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)',
-                    borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)',
-                    fontFamily: 'var(--font)', fontSize: 13.5, outline: 'none',
-                  }}
-                />
-              </div>
-            ))}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.5rem' }}>
-              <Btn variant="primary">Save provider</Btn>
-            </div>
+          <SettingsField label="Timeout (seconds)" placeholder="120" />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
+            <Btn variant="primary">Save provider</Btn>
           </div>
-        </div>
+        </SettingsCard>
+
+        {/* Ingestion */}
+        <SettingsCard title="Ingestion">
+          <SettingsField label="Chunk size (chars)" placeholder="800000" />
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: '-0.25rem' }}>
+            Maximum characters per chunk sent to the embedding model. Larger values mean fewer chunks but higher token cost per query.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.25rem' }}>
+            <Btn variant="primary">Save ingestion settings</Btn>
+          </div>
+        </SettingsCard>
+
       </div>
     </>
+  )
+}
+
+function SettingsCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+      <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>
+        {title}
+      </div>
+      <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function SettingsField({ label, placeholder, type = 'text' }: { label: string; placeholder?: string; type?: string }) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+        {label}
+      </label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        style={{
+          width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)',
+          borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)',
+          fontFamily: 'var(--font)', fontSize: 13.5, outline: 'none',
+        }}
+      />
+    </div>
   )
 }

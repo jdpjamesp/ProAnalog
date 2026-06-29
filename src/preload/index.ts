@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Session, Query, ChunkRef, ProviderConfig } from '../shared/types'
+import type { Session, Query, ChunkRef, ProviderConfig, IngestConfig } from '../shared/types'
 import { IPC } from '../shared/types'
 
 const api = {
@@ -20,8 +20,10 @@ const api = {
     getAll: ():                                    Promise<Record<string, unknown>> => ipcRenderer.invoke(IPC.settings.getAll),
     get:    <T>(key: string):                      Promise<T | null>            => ipcRenderer.invoke(IPC.settings.get, key),
     set:    (key: string, value: unknown):         Promise<void>               => ipcRenderer.invoke(IPC.settings.set, key, value),
-    getProvider: ():                               Promise<ProviderConfig | null> => ipcRenderer.invoke(IPC.settings.get, 'provider'),
-    setProvider: (config: ProviderConfig):         Promise<void>               => ipcRenderer.invoke(IPC.settings.set, 'provider', config),
+    getProvider:  ():                              Promise<ProviderConfig | null> => ipcRenderer.invoke(IPC.settings.get, 'provider'),
+    setProvider:  (config: ProviderConfig):        Promise<void>               => ipcRenderer.invoke(IPC.settings.set, 'provider', config),
+    getIngest:    ():                              Promise<IngestConfig | null>  => ipcRenderer.invoke(IPC.settings.get, 'ingest'),
+    setIngest:    (config: IngestConfig):          Promise<void>               => ipcRenderer.invoke(IPC.settings.set, 'ingest', config),
   },
 }
 

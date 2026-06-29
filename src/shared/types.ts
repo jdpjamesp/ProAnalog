@@ -40,6 +40,11 @@ export interface ProviderConfig {
   embedding_model: string
   temperature: number
   max_tokens: number
+  timeout_seconds: number
+}
+
+export interface IngestConfig {
+  chunk_size_chars: number
 }
 
 // IPC channel names — single source of truth
