@@ -54,8 +54,9 @@ export interface ProviderConfig {
 }
 
 export interface IngestConfig {
-  chunk_size: number    // lines per chunk
-  chunk_overlap: number // overlap lines
+  chunk_size: number          // lines per chunk
+  chunk_overlap: number       // overlap lines
+  embedding_concurrency: number  // parallel embedding batches
 }
 
 /** One file to ingest — renderer sends filepath + optional logType override. */

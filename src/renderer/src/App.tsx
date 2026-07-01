@@ -7,23 +7,36 @@ type View = 'sessions' | 'ingest' | 'query' | 'settings'
 export default function App(): React.JSX.Element {
   const [view, setView]                   = useState<View>('sessions')
   const [activeSession, setActiveSession] = useState<Session | null>(null)
-  const [sessionCount, setSessionCount]   = useState(0)
+  const [sessionCount, setSessionCount]     = useState(0)
+  const [recentSessions, setRecentSessions] = useState<Session[]>([])
 
   useEffect(() => {
-    window.api.sessions.list().then(s => setSessionCount(s.length))
+    window.api.sessions.list().then(s => {
+      setSessionCount(s.length)
+      setRecentSessions(s.slice(0, 4))
+    })
   }, [])
 
   const handleSessionCreated = (s: Session) => {
     setActiveSession(s)
     setSessionCount(c => c + 1)
+    setRecentSessions(prev => [s, ...prev].slice(0, 4))
   }
+
+  const handleSessionDeleted = (id: number) => {
+    setSessionCount(c => c - 1)
+    setRecentSessions(prev => prev.filter(s => s.id !== id))
+    if (activeSession?.id === id) setActiveSession(null)
+  }
+
+  const handleSessionSelect = (s: Session) => { setActiveSession(s); setView('query') }
 
   return (
     <div style={shell}>
       <Titlebar activeSession={activeSession} />
-      <Sidebar view={view} onNavigate={setView} activeSession={activeSession} sessionCount={sessionCount} />
+      <Sidebar view={view} onNavigate={setView} activeSession={activeSession} sessionCount={sessionCount} recentSessions={recentSessions} onSessionSelect={handleSessionSelect} />
       <main style={mainStyle}>
-        {view === 'sessions'  && <SessionsView onSessionSelect={(s) => { setActiveSession(s); setView('query') }} onNavigate={setView} onSessionDeleted={() => setSessionCount(c => c - 1)} />}
+        {view === 'sessions'  && <SessionsView onSessionSelect={handleSessionSelect} onNavigate={setView} onSessionDeleted={handleSessionDeleted} />}
         {view === 'ingest'    && <IngestView onNavigate={setView} onSessionCreated={handleSessionCreated} />}
         {view === 'query'     && <QueryView activeSession={activeSession} onNavigate={setView} />}
         {view === 'settings'  && <SettingsView />}
@@ -49,6 +62,12 @@ const mainStyle: React.CSSProperties = {
 
 /* ── Titlebar ──────────────────────────────────────────────────────────── */
 function Titlebar({ activeSession }: { activeSession: Session | null }) {
+  const [providerLabel, setProviderLabel] = useState<string | null>(null)
+
+  useEffect(() => {
+    window.api.settings.getProvider().then(cfg => setProviderLabel(cfg?.label || null))
+  }, [])
+
   return (
     <header style={{
       gridColumn: '1 / -1',
@@ -83,7 +102,7 @@ function Titlebar({ activeSession }: { activeSession: Session | null }) {
 
       <div style={{ flex: 1 }} />
 
-      <StatusChip label="No provider" ok={false} />
+      <StatusChip label={providerLabel ?? 'No provider'} ok={!!providerLabel} />
     </header>
   )
 }
@@ -103,7 +122,35 @@ function StatusChip({ label, ok }: { label: string; ok: boolean }) {
 }
 
 /* ── Sidebar ───────────────────────────────────────────────────────────── */
-function Sidebar({ view, onNavigate, activeSession, sessionCount }: { view: View; onNavigate: (v: View) => void; activeSession: Session | null; sessionCount: number }) {
+function RecentSessionItem({ session, active, onClick }: { session: Session; active: boolean; onClick: () => void }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        padding: '0.375rem 0.75rem', borderRadius: 6, cursor: 'pointer',
+        background: active ? 'var(--accent-glow)' : hovered ? 'var(--bg-hover)' : 'transparent',
+        transition: 'background 0.12s',
+      }}
+    >
+      <div style={{
+        fontSize: 12, fontWeight: active ? 500 : 400,
+        color: active ? 'var(--accent-text)' : hovered ? 'var(--text-1)' : 'var(--text-2)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>{session.name}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>
+        {session.chunk_count.toLocaleString()} chunks
+      </div>
+    </div>
+  )
+}
+
+function Sidebar({ view, onNavigate, activeSession, sessionCount, recentSessions, onSessionSelect }: {
+  view: View; onNavigate: (v: View) => void; activeSession: Session | null
+  sessionCount: number; recentSessions: Session[]; onSessionSelect: (s: Session) => void
+}) {
   return (
     <aside style={{
       background: 'var(--bg-surface)',
@@ -121,9 +168,13 @@ function Sidebar({ view, onNavigate, activeSession, sessionCount }: { view: View
       <Divider />
 
       <NavSection label="Recent Sessions">
-        <div style={{ padding: '0.25rem 0.5rem', color: 'var(--text-3)', fontSize: 12, textAlign: 'center' }}>
-          No sessions yet
-        </div>
+        {recentSessions.length === 0 ? (
+          <div style={{ padding: '0.25rem 0.5rem', color: 'var(--text-3)', fontSize: 12, textAlign: 'center' }}>
+            No sessions yet
+          </div>
+        ) : recentSessions.map(s => (
+          <RecentSessionItem key={s.id} session={s} active={activeSession?.id === s.id} onClick={() => onSessionSelect(s)} />
+        ))}
       </NavSection>
 
       <Divider />
@@ -239,7 +290,7 @@ function Btn({ variant = 'ghost', children, onClick, disabled }: {
 function SessionsView({ onSessionSelect, onNavigate, onSessionDeleted }: {
   onSessionSelect: (s: Session) => void
   onNavigate: (v: View) => void
-  onSessionDeleted?: () => void
+  onSessionDeleted?: (id: number) => void
 }) {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading]   = useState(true)
@@ -263,7 +314,7 @@ function SessionsView({ onSessionSelect, onNavigate, onSessionDeleted }: {
   const doDelete = async (id: number) => {
     await window.api.sessions.delete(id)
     setSessions(prev => prev.filter(s => s.id !== id))
-    onSessionDeleted?.()
+    onSessionDeleted?.(id)
   }
 
   const deleteSession = async (e: React.MouseEvent, id: number) => {
@@ -747,12 +798,15 @@ function QueryView({ activeSession, onNavigate }: {
   const [queryCount, setQueryCount]           = useState(0)
   const [timeFrom, setTimeFrom]               = useState('')
   const [timeTo, setTimeTo]                   = useState('')
+  const [currentSession, setCurrentSession]   = useState<Session | null>(activeSession)
   const textareaRef                           = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef                        = useRef<HTMLDivElement>(null)
 
-  // Load history when session changes
+  // Load history when session changes; refresh session to get accurate file/chunk counts
   useEffect(() => {
+    setCurrentSession(activeSession)
     if (!activeSession) { setMessages([]); return }
+    window.api.sessions.get(activeSession.id).then(s => s && setCurrentSession(s))
     window.api.queries.list(activeSession.id).then((qs: Query[]) => {
       const msgs: Message[] = []
       for (const q of qs) {
@@ -833,7 +887,7 @@ function QueryView({ activeSession, onNavigate }: {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', flex: 1, overflow: 'hidden' }}>
 
         {/* Chat column */}
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--border)', minHeight: 0 }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             {messages.length === 0 && (
               <ChatBubble role="ai" text={
@@ -889,7 +943,7 @@ function QueryView({ activeSession, onNavigate }: {
         </div>
 
         {/* Context sidebar */}
-        <div style={{ background: 'var(--bg-surface)', overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+        <div style={{ background: 'var(--bg-surface)', overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.875rem', minHeight: 0 }}>
           <CtxCard title="⏱ Time filter">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <div>
@@ -940,10 +994,10 @@ function QueryView({ activeSession, onNavigate }: {
           </CtxCard>
 
           <CtxCard title="⬡ Session">
-            {activeSession ? (
+            {currentSession ? (
               <>
-                <CtxStat label="Files"   value={String(activeSession.file_count)} />
-                <CtxStat label="Chunks"  value={activeSession.chunk_count.toLocaleString()} />
+                <CtxStat label="Files"   value={String(currentSession.file_count)} />
+                <CtxStat label="Chunks"  value={currentSession.chunk_count.toLocaleString()} />
                 <CtxStat label="Queries" value={String(queryCount)} />
               </>
             ) : (
@@ -999,7 +1053,7 @@ function ChatBubble({ role, text, streaming }: { role: 'user' | 'ai'; text: stri
         background: isUser ? 'var(--accent-dim)' : 'linear-gradient(135deg, var(--teal) 0%, #0891b2 100%)',
         color: isUser ? 'var(--accent-text)' : '#fff',
       }}>
-        {isUser ? 'JP' : 'AI'}
+        {isUser ? 'You' : 'AI'}
       </div>
       <div style={{
         padding: '0.75rem 1rem', borderRadius: 10, lineHeight: 1.6, fontSize: 13.5,
@@ -1040,7 +1094,7 @@ const DEFAULT_PROVIDER: ProviderConfig = {
   label: '', base_url: '', api_key: '', chat_model: '',
   embedding_model: '', temperature: 0.2, max_tokens: 4096, timeout_seconds: 120,
 }
-const DEFAULT_INGEST: IngestConfig = { chunk_size: 50, chunk_overlap: 5 }
+const DEFAULT_INGEST: IngestConfig = { chunk_size: 50, chunk_overlap: 5, embedding_concurrency: 3 }
 
 function SettingsView() {
   const [provider, setProvider] = useState<ProviderConfig>(DEFAULT_PROVIDER)
@@ -1122,6 +1176,17 @@ function SettingsView() {
           <SettingsField label="Chunk overlap (lines)" value={String(ingest.chunk_overlap)} onChange={v => setI('chunk_overlap', v)} placeholder="5" />
           <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: '-0.25rem' }}>
             Lines shared between adjacent chunks to preserve context at boundaries.
+          </div>
+          <SettingsField label="Embedding concurrency" value={String(ingest.embedding_concurrency)} onChange={v => setI('embedding_concurrency', v)} placeholder="3" />
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: '-0.25rem', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span>Parallel embedding batches sent during ingest. Higher = faster, but risks rate limiting.</span>
+            <span style={{ color: 'var(--text-3)' }}>
+              Guidance: &nbsp;
+              <span style={{ color: 'var(--teal)' }}>Ollama / local</span> → 5–10 &nbsp;·&nbsp;
+              <span style={{ color: 'var(--teal)' }}>OpenAI</span> → 3–5 &nbsp;·&nbsp;
+              <span style={{ color: 'var(--teal)' }}>Google free tier</span> → 1–2 &nbsp;·&nbsp;
+              <span style={{ color: 'var(--teal)' }}>Groq</span> → 2–4
+            </span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.75rem', paddingTop: '0.25rem' }}>
             {ingestSaved && <span style={{ fontSize: 12, color: 'var(--teal)' }}>✓ Saved</span>}

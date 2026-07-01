@@ -77,7 +77,7 @@ Chat interface for interrogating the active session. Each question is embedded, 
 The time filter scopes retrieval to a specific date/time window — useful when you know an incident occurred in a particular hour. Chunks without timestamps are always included. Follow-up questions reuse the existing embeddings — no re-ingestion needed.
 
 ### Settings
-Configure the LLM provider (base URL, API key, chat model, embedding model, temperature, max tokens, timeout) and ingestion parameters (chunk size and overlap in lines).
+Configure the LLM provider (base URL, API key, chat model, embedding model, temperature, max tokens, timeout) and ingestion parameters (chunk size, overlap in lines, and embedding concurrency). Embedding concurrency controls how many batches are sent to the embedding model in parallel during ingest — raise it for local providers like Ollama (5–10), keep it low for rate-limited cloud APIs (1–3).
 
 ---
 
