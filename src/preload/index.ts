@@ -44,8 +44,8 @@ const api = {
     },
   },
   query: {
-    ask: (sessionId: number, question: string): Promise<Query> =>
-      ipcRenderer.invoke(IPC.query.ask, sessionId, question),
+    ask: (sessionId: number, question: string, timeRangeStart?: number, timeRangeEnd?: number): Promise<Query> =>
+      ipcRenderer.invoke(IPC.query.ask, sessionId, question, timeRangeStart, timeRangeEnd),
     onToken: (cb: (token: string) => void): Unsub => {
       const handler = (_e: IpcRendererEvent, t: string) => cb(t)
       ipcRenderer.on(IPC.query.token, handler)

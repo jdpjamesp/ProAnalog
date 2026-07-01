@@ -7,14 +7,24 @@ type View = 'sessions' | 'ingest' | 'query' | 'settings'
 export default function App(): React.JSX.Element {
   const [view, setView]                   = useState<View>('sessions')
   const [activeSession, setActiveSession] = useState<Session | null>(null)
+  const [sessionCount, setSessionCount]   = useState(0)
+
+  useEffect(() => {
+    window.api.sessions.list().then(s => setSessionCount(s.length))
+  }, [])
+
+  const handleSessionCreated = (s: Session) => {
+    setActiveSession(s)
+    setSessionCount(c => c + 1)
+  }
 
   return (
     <div style={shell}>
       <Titlebar activeSession={activeSession} />
-      <Sidebar view={view} onNavigate={setView} activeSession={activeSession} />
+      <Sidebar view={view} onNavigate={setView} activeSession={activeSession} sessionCount={sessionCount} />
       <main style={mainStyle}>
-        {view === 'sessions'  && <SessionsView onSessionSelect={(s) => { setActiveSession(s); setView('query') }} onNavigate={setView} />}
-        {view === 'ingest'    && <IngestView onNavigate={setView} onSessionCreated={setActiveSession} />}
+        {view === 'sessions'  && <SessionsView onSessionSelect={(s) => { setActiveSession(s); setView('query') }} onNavigate={setView} onSessionDeleted={() => setSessionCount(c => c - 1)} />}
+        {view === 'ingest'    && <IngestView onNavigate={setView} onSessionCreated={handleSessionCreated} />}
         {view === 'query'     && <QueryView activeSession={activeSession} onNavigate={setView} />}
         {view === 'settings'  && <SettingsView />}
       </main>
@@ -93,7 +103,7 @@ function StatusChip({ label, ok }: { label: string; ok: boolean }) {
 }
 
 /* ── Sidebar ───────────────────────────────────────────────────────────── */
-function Sidebar({ view, onNavigate, activeSession }: { view: View; onNavigate: (v: View) => void; activeSession: Session | null }) {
+function Sidebar({ view, onNavigate, activeSession, sessionCount }: { view: View; onNavigate: (v: View) => void; activeSession: Session | null; sessionCount: number }) {
   return (
     <aside style={{
       background: 'var(--bg-surface)',
@@ -103,7 +113,7 @@ function Sidebar({ view, onNavigate, activeSession }: { view: View; onNavigate: 
       overflowY: 'auto',
     }}>
       <NavSection label="Analysis">
-        <NavItem icon="⊞" label="Sessions"  active={view === 'sessions'}  onClick={() => onNavigate('sessions')} badge="0" />
+        <NavItem icon="⊞" label="Sessions"  active={view === 'sessions'}  onClick={() => onNavigate('sessions')} badge={String(sessionCount)} />
         <NavItem icon="↑" label="Ingest"    active={view === 'ingest'}    onClick={() => onNavigate('ingest')} />
         <NavItem icon="◈" label="Query"     active={view === 'query'}     onClick={() => onNavigate('query')} />
       </NavSection>
@@ -226,14 +236,16 @@ function Btn({ variant = 'ghost', children, onClick, disabled }: {
 }
 
 /* ── Sessions view ─────────────────────────────────────────────────────── */
-function SessionsView({ onSessionSelect, onNavigate }: {
+function SessionsView({ onSessionSelect, onNavigate, onSessionDeleted }: {
   onSessionSelect: (s: Session) => void
   onNavigate: (v: View) => void
+  onSessionDeleted?: () => void
 }) {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading]   = useState(true)
   const [renamingId, setRenamingId] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [ctxMenu, setCtxMenu] = useState<{ id: number; x: number; y: number } | null>(null)
 
   useEffect(() => {
     window.api.sessions.list().then(s => { setSessions(s); setLoading(false) })
@@ -248,10 +260,15 @@ function SessionsView({ onSessionSelect, onNavigate }: {
     setRenamingId(null)
   }
 
-  const deleteSession = async (e: React.MouseEvent, id: number) => {
-    e.stopPropagation()
+  const doDelete = async (id: number) => {
     await window.api.sessions.delete(id)
     setSessions(prev => prev.filter(s => s.id !== id))
+    onSessionDeleted?.()
+  }
+
+  const deleteSession = async (e: React.MouseEvent, id: number) => {
+    e.stopPropagation()
+    await doDelete(id)
   }
 
   const header = (
@@ -293,14 +310,52 @@ function SessionsView({ onSessionSelect, onNavigate }: {
             onRenameCancel={() => setRenamingId(null)}
             onSelect={() => onSessionSelect(s)}
             onDelete={(e) => deleteSession(e, s.id)}
+            onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ id: s.id, x: e.clientX, y: e.clientY }) }}
           />
         ))}
+
+        {ctxMenu && (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setCtxMenu(null)} />
+            <div style={{
+              position: 'fixed', zIndex: 100, left: ctxMenu.x, top: ctxMenu.y,
+              background: 'var(--bg-panel)', border: '1px solid var(--border)',
+              borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+              minWidth: 130, overflow: 'hidden',
+            }}>
+              <CtxMenuItem label="Rename" onClick={() => {
+                const s = sessions.find(s => s.id === ctxMenu.id)
+                if (s) { setRenamingId(s.id); setRenameValue(s.name) }
+                setCtxMenu(null)
+              }} />
+              <CtxMenuItem label="Delete" danger onClick={() => { doDelete(ctxMenu.id); setCtxMenu(null) }} />
+            </div>
+          </>
+        )}
       </div>
     </>
   )
 }
 
-function SessionCard({ session, isRenaming, renameValue, onRenameValueChange, onRenameStart, onRenameCommit, onRenameCancel, onSelect, onDelete }: {
+function CtxMenuItem({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'block', width: '100%', textAlign: 'left',
+        background: hovered ? 'var(--bg-hover)' : 'none',
+        border: 'none', padding: '7px 14px', fontSize: 13,
+        color: danger ? 'var(--red)' : 'var(--text-1)',
+        cursor: 'pointer',
+      }}
+    >{label}</button>
+  )
+}
+
+function SessionCard({ session, isRenaming, renameValue, onRenameValueChange, onRenameStart, onRenameCommit, onRenameCancel, onSelect, onDelete, onContextMenu }: {
   session: Session
   isRenaming: boolean
   renameValue: string
@@ -310,6 +365,7 @@ function SessionCard({ session, isRenaming, renameValue, onRenameValueChange, on
   onRenameCancel: () => void
   onSelect: () => void
   onDelete: (e: React.MouseEvent) => void
+  onContextMenu?: (e: React.MouseEvent) => void
 }) {
   const [hovered, setHovered] = useState(false)
   const date = new Date(session.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
@@ -317,6 +373,7 @@ function SessionCard({ session, isRenaming, renameValue, onRenameValueChange, on
   return (
     <div
       onClick={isRenaming ? undefined : onSelect}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -396,6 +453,7 @@ function IngestView({ onNavigate, onSessionCreated }: {
   const [sessionName, setSessionName]       = useState('')
   const [phase, setPhase]                   = useState<IngestPhase>('idle')
   const [progress, setProgress]             = useState<IngestProgress | null>(null)
+  const [ingestError, setIngestError]       = useState<string | null>(null)
   const [availableParsers, setAvailableParsers] = useState<string[]>([])
   const [dragging, setDragging]             = useState(false)
   const fileInputRef                        = useRef<HTMLInputElement>(null)
@@ -459,6 +517,7 @@ function IngestView({ onNavigate, onSessionCreated }: {
 
     setPhase('ingesting')
     setProgress(null)
+    setIngestError(null)
 
     const unsub = window.api.ingest.onProgress(p => {
       setProgress(p)
@@ -480,9 +539,9 @@ function IngestView({ onNavigate, onSessionCreated }: {
         chunkOverlap: ingestCfg?.chunk_overlap ?? 5,
       })
     } catch (err) {
-      console.error('Ingest failed:', err)
       unsub()
       setPhase('idle')
+      setIngestError(err instanceof Error ? err.message : String(err))
     }
   }
 
@@ -625,6 +684,14 @@ function IngestView({ onNavigate, onSessionCreated }: {
           </>
         )}
 
+        {/* Error */}
+        {ingestError && phase === 'idle' && (
+          <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--red)', borderRadius: 8, padding: '1.25rem', flexShrink: 0 }}>
+            <div style={{ color: 'var(--red)', fontSize: 14, fontWeight: 600, marginBottom: '0.5rem' }}>✕ Ingestion failed</div>
+            <div style={{ fontSize: 12, color: 'var(--text-2)', wordBreak: 'break-word' }}>{ingestError}</div>
+          </div>
+        )}
+
         {/* Progress */}
         {phase === 'ingesting' && (
           <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 8, padding: '1.25rem', flexShrink: 0 }}>
@@ -678,6 +745,8 @@ function QueryView({ activeSession, onNavigate }: {
   const [lastQueryTokens, setLastQueryTokens] = useState(0)
   const [sessionTotalTokens, setSessionTotalTokens] = useState(0)
   const [queryCount, setQueryCount]           = useState(0)
+  const [timeFrom, setTimeFrom]               = useState('')
+  const [timeTo, setTimeTo]                   = useState('')
   const textareaRef                           = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef                        = useRef<HTMLDivElement>(null)
 
@@ -730,8 +799,11 @@ function QueryView({ activeSession, onNavigate }: {
       setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, text: `Error: ${err}`, streaming: false } : m))
     )
 
+    const timeRangeStart = timeFrom ? new Date(timeFrom).getTime() : undefined
+    const timeRangeEnd   = timeTo   ? new Date(timeTo).getTime()   : undefined
+
     try {
-      const q: Query = await window.api.query.ask(activeSession.id, question)
+      const q: Query = await window.api.query.ask(activeSession.id, question, timeRangeStart, timeRangeEnd)
       setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, streaming: false } : m))
       setLastQueryTokens(q.tokens_used)
       setSessionTotalTokens(prev => prev + q.tokens_used)
@@ -818,6 +890,55 @@ function QueryView({ activeSession, onNavigate }: {
 
         {/* Context sidebar */}
         <div style={{ background: 'var(--bg-surface)', overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          <CtxCard title="⏱ Time filter">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>From</div>
+                <input
+                  type="datetime-local"
+                  value={timeFrom}
+                  onChange={e => setTimeFrom(e.target.value)}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'var(--bg-input)', border: '1px solid var(--border)',
+                    borderRadius: 5, padding: '5px 7px', color: 'var(--text-1)',
+                    fontFamily: 'var(--font)', fontSize: 11, outline: 'none',
+                    colorScheme: 'dark',
+                  }}
+                />
+              </div>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>To</div>
+                <input
+                  type="datetime-local"
+                  value={timeTo}
+                  onChange={e => setTimeTo(e.target.value)}
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'var(--bg-input)', border: '1px solid var(--border)',
+                    borderRadius: 5, padding: '5px 7px', color: 'var(--text-1)',
+                    fontFamily: 'var(--font)', fontSize: 11, outline: 'none',
+                    colorScheme: 'dark',
+                  }}
+                />
+              </div>
+              {(timeFrom || timeTo) && (
+                <button
+                  onClick={() => { setTimeFrom(''); setTimeTo('') }}
+                  style={{
+                    alignSelf: 'flex-end', background: 'none', border: '1px solid var(--border)',
+                    borderRadius: 4, color: 'var(--text-3)', fontSize: 10, padding: '2px 8px', cursor: 'pointer',
+                  }}
+                >Clear filter</button>
+              )}
+              {!(timeFrom || timeTo) && (
+                <div style={{ fontSize: 10, color: 'var(--text-3)', paddingTop: 2 }}>
+                  Scope retrieval to a time window. Chunks without timestamps are always included.
+                </div>
+              )}
+            </div>
+          </CtxCard>
+
           <CtxCard title="⬡ Session">
             {activeSession ? (
               <>

@@ -3,9 +3,12 @@ import { IPC } from '../../shared/types'
 import { askQuestion } from '../query'
 
 export function registerQueryHandlers(): void {
-  ipcMain.handle(IPC.query.ask, async (event, sessionId: number, question: string) => {
+  ipcMain.handle(IPC.query.ask, async (event, sessionId: number, question: string, timeRangeStart?: number, timeRangeEnd?: number) => {
     try {
-      return await askQuestion(event.sender, sessionId, question)
+      const timeRange = (timeRangeStart !== undefined && timeRangeEnd !== undefined)
+        ? { start: timeRangeStart, end: timeRangeEnd }
+        : undefined
+      return await askQuestion(event.sender, sessionId, question, timeRange)
     } catch (err) {
       event.sender.send(IPC.query.error, String(err))
       throw err

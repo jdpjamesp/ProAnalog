@@ -4,6 +4,7 @@ import { getSetting } from '../db/settings'
 import { createQuery } from '../db/queries'
 import { updateSessionUpdatedAt } from '../db/sessions'
 import { searchVectors } from '../ingest/vectorstore'
+import { embedTexts } from '../embed'
 import type { ProviderConfig, Query, ChunkRef } from '../../shared/types'
 import { IPC } from '../../shared/types'
 import type { VectorRecord } from '../ingest/types'
@@ -23,7 +24,8 @@ type SearchResult = VectorRecord & { _distance?: number }
 export async function askQuestion(
   sender: WebContents,
   sessionId: number,
-  question: string
+  question: string,
+  timeRange?: { start: number; end: number }
 ): Promise<Query> {
   const config = getSetting<ProviderConfig>('provider')
   if (!config)               throw new Error('No LLM provider configured — open Settings to add one.')
@@ -37,14 +39,10 @@ export async function askQuestion(
   })
 
   // 1. Embed the question
-  const embResult = await client.embeddings.create({
-    model: config.embedding_model,
-    input: question,
-  })
-  const qVector = embResult.data[0].embedding
+  const [qVector] = await embedTexts(config, [question])
 
   // 2. Search LanceDB
-  const rawResults = await searchVectors(sessionId, qVector, RETRIEVAL_LIMIT)
+  const rawResults = await searchVectors(sessionId, qVector, RETRIEVAL_LIMIT, timeRange)
   const results = rawResults as SearchResult[]
 
   const chunkRefs: ChunkRef[] = results.map(r => ({
@@ -68,7 +66,6 @@ export async function askQuestion(
 
   // 4. Stream LLM response
   let fullAnswer = ''
-  let tokensUsed = 0
 
   const stream = await client.chat.completions.create({
     model:       config.chat_model,
@@ -78,8 +75,7 @@ export async function askQuestion(
     ],
     temperature:    config.temperature   ?? 0.2,
     max_tokens:     config.max_tokens    ?? 4096,
-    stream:         true,
-    stream_options: { include_usage: true },
+    stream: true,
   })
 
   for await (const chunk of stream) {
@@ -87,9 +83,6 @@ export async function askQuestion(
     if (token) {
       fullAnswer += token
       sender.send(IPC.query.token, token)
-    }
-    if (chunk.usage) {
-      tokensUsed = chunk.usage.total_tokens
     }
   }
 
@@ -99,7 +92,7 @@ export async function askQuestion(
     question,
     answer:      fullAnswer,
     chunks_used: chunkRefs,
-    tokens_used: tokensUsed,
+    tokens_used: 0,
   })
 
   updateSessionUpdatedAt(sessionId)

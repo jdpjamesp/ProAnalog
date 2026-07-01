@@ -1,5 +1,5 @@
-import OpenAI from 'openai'
 import { getSetting } from '../db/settings'
+import { embedTexts } from '../embed'
 import type { ProviderConfig } from '../../shared/types'
 import type { Chunk, VectorRecord } from './types'
 
@@ -13,26 +13,17 @@ export async function embedAndPrepare(
   if (!config) throw new Error('No LLM provider configured. Add one in Settings before ingesting.')
   if (!config.embedding_model) throw new Error('No embedding model configured in the active provider.')
 
-  const client = new OpenAI({
-    apiKey: config.api_key || 'no-key',  // some local providers need a placeholder
-    baseURL: config.base_url || undefined,
-  })
-
   const records: VectorRecord[] = []
 
   for (let i = 0; i < chunks.length; i += EMBED_BATCH_SIZE) {
     const batch = chunks.slice(i, i + EMBED_BATCH_SIZE)
-
-    const response = await client.embeddings.create({
-      model: config.embedding_model,
-      input: batch.map(c => c.text),
-    })
+    const vectors = await embedTexts(config, batch.map(c => c.text))
 
     for (let j = 0; j < batch.length; j++) {
       const chunk = batch[j]
       records.push({
         id: chunk.id,
-        vector: response.data[j].embedding,
+        vector: vectors[j],
         text: chunk.text,
         filename: chunk.filename,
         log_type: chunk.logType,
