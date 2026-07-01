@@ -785,6 +785,23 @@ interface Message {
   streaming?: boolean
 }
 
+function toDatetimeLocal(epochMs: number): string {
+  const d = new Date(epochMs)
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+  ].join('-') + 'T' + [
+    String(d.getHours()).padStart(2, '0'),
+    String(d.getMinutes()).padStart(2, '0'),
+  ].join(':')
+}
+
+function fmtCoverage(epochMs: number): string {
+  const d = new Date(epochMs)
+  return `${d.getDate()} ${d.toLocaleString('en', { month: 'short' })} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 function QueryView({ activeSession, onNavigate }: {
   activeSession: Session | null
   onNavigate: (v: View) => void
@@ -805,7 +822,14 @@ function QueryView({ activeSession, onNavigate }: {
   // Load history when session changes; refresh session to get accurate file/chunk counts
   useEffect(() => {
     setCurrentSession(activeSession)
-    if (!activeSession) { setMessages([]); return }
+    if (!activeSession) {
+      setMessages([])
+      setTimeFrom('')
+      setTimeTo('')
+      return
+    }
+    setTimeFrom(activeSession.timestamp_min != null ? toDatetimeLocal(activeSession.timestamp_min) : '')
+    setTimeTo(activeSession.timestamp_max != null ? toDatetimeLocal(activeSession.timestamp_max) : '')
     window.api.sessions.get(activeSession.id).then(s => s && setCurrentSession(s))
     window.api.queries.list(activeSession.id).then((qs: Query[]) => {
       const msgs: Message[] = []
@@ -884,7 +908,7 @@ function QueryView({ activeSession, onNavigate }: {
         <Btn variant="primary" onClick={() => onNavigate('ingest')}>＋ New session</Btn>
       </PanelHeader>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gridTemplateRows: '1fr', flex: 1, overflow: 'hidden' }}>
 
         {/* Chat column */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--border)', minHeight: 0 }}>
@@ -943,7 +967,8 @@ function QueryView({ activeSession, onNavigate }: {
         </div>
 
         {/* Context sidebar */}
-        <div style={{ background: 'var(--bg-surface)', overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.875rem', minHeight: 0 }}>
+        <div style={{ background: 'var(--bg-surface)', overflowY: 'auto', minHeight: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', padding: '0.875rem' }}>
           <CtxCard title="⏱ Time filter">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <div>
@@ -999,6 +1024,9 @@ function QueryView({ activeSession, onNavigate }: {
                 <CtxStat label="Files"   value={String(currentSession.file_count)} />
                 <CtxStat label="Chunks"  value={currentSession.chunk_count.toLocaleString()} />
                 <CtxStat label="Queries" value={String(queryCount)} />
+                {currentSession.timestamp_min != null && currentSession.timestamp_max != null && (
+                  <CtxStat label="Coverage" value={`${fmtCoverage(currentSession.timestamp_min)} → ${fmtCoverage(currentSession.timestamp_max)}`} />
+                )}
               </>
             ) : (
               <CtxStat label="Status" value="No session loaded" />
@@ -1036,6 +1064,7 @@ function QueryView({ activeSession, onNavigate }: {
             <CtxStat label="This query"    value={lastQueryTokens > 0    ? lastQueryTokens.toLocaleString()    : '—'} accent={lastQueryTokens > 0} />
             <CtxStat label="Session total" value={sessionTotalTokens > 0 ? sessionTotalTokens.toLocaleString() : '—'} />
           </CtxCard>
+        </div>
         </div>
       </div>
     </>

@@ -21,6 +21,7 @@ export function initDb(): void {
 // user_version 0 = original single-file schema
 // user_version 1 = multi-file schema: sessions drops filename/filepath/file_size,
 //                  gains file_count; new session_files table
+// user_version 2 = sessions gains timestamp_min / timestamp_max (epoch ms, nullable)
 
 function migrate(db: Database.Database): void {
   const version = (db.pragma('user_version', { simple: true }) as number)
@@ -78,6 +79,16 @@ function migrate(db: Database.Database): void {
         );
       `)
       db.pragma('user_version = 1')
+    })()
+  }
+
+  if (version < 2) {
+    db.transaction(() => {
+      db.exec(`
+        ALTER TABLE sessions ADD COLUMN timestamp_min INTEGER;
+        ALTER TABLE sessions ADD COLUMN timestamp_max INTEGER;
+      `)
+      db.pragma('user_version = 2')
     })()
   }
 }

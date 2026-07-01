@@ -6,6 +6,8 @@ export interface Session {
   query_count?: number  // computed via subquery in listSessions
   created_at: number   // unix ms
   updated_at: number
+  timestamp_min: number | null  // epoch ms — earliest log entry in session
+  timestamp_max: number | null  // epoch ms — latest log entry in session
 }
 
 export interface SessionFile {

@@ -72,9 +72,14 @@ Lists all past analysis sessions sorted by last activity. Each session shows its
 Drag and drop log files (or use the file picker) to start a new session. Each file is parsed immediately on drop and a type badge confirms detection. Unknown formats show a type selector. Once all files are identified, name the session and click **Start ingestion** — the app chunks the log lines, calls the configured embedding model in batches, and stores the vectors locally. Progress is shown in real time.
 
 ### Query
-Chat interface for interrogating the active session. Each question is embedded, the closest chunks are retrieved from LanceDB, and the full context is sent to the LLM. Responses stream token by token. The right-hand sidebar shows a time filter, retrieved chunks with relevance scores, and running token usage.
+Chat interface for interrogating the active session. Each question is embedded, the closest chunks are retrieved from LanceDB, and the full context is sent to the LLM. Responses stream token by token. The right-hand sidebar shows:
 
-The time filter scopes retrieval to a specific date/time window — useful when you know an incident occurred in a particular hour. Chunks without timestamps are always included. Follow-up questions reuse the existing embeddings — no re-ingestion needed.
+- **Time filter** — From/To pickers pre-populated with the actual date/time range of the ingested logs, so you can immediately narrow to a specific window without consulting the raw files. Chunks with no timestamp are always included regardless of the filter.
+- **Session stats** — file count, chunk count, query count, and a Coverage line showing the overall time span of the logs.
+- **Retrieved chunks** — the specific excerpts used for the last answer, with relevance scores.
+- **Token usage** — tokens used for the last query and the running session total.
+
+Follow-up questions reuse the existing embeddings — no re-ingestion needed.
 
 ### Settings
 Configure the LLM provider (base URL, API key, chat model, embedding model, temperature, max tokens, timeout) and ingestion parameters (chunk size, overlap in lines, and embedding concurrency). Embedding concurrency controls how many batches are sent to the embedding model in parallel during ingest — raise it for local providers like Ollama (5–10), keep it low for rate-limited cloud APIs (1–3).

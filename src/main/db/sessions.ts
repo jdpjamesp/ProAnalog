@@ -45,6 +45,12 @@ export function updateSessionChunkCount(id: number, chunk_count: number): void {
     .run(chunk_count, Date.now(), id)
 }
 
+export function updateSessionTimestampRange(id: number, min: number | null, max: number | null): void {
+  getDb()
+    .prepare('UPDATE sessions SET timestamp_min = ?, timestamp_max = ?, updated_at = ? WHERE id = ?')
+    .run(min, max, Date.now(), id)
+}
+
 export function updateSessionUpdatedAt(id: number): void {
   getDb()
     .prepare('UPDATE sessions SET updated_at = ? WHERE id = ?')

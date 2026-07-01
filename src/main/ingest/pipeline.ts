@@ -1,7 +1,7 @@
 import { readFile, stat } from 'fs/promises'
 import { basename } from 'path'
 import { detectParser, getParser } from '../parser'
-import { updateSessionChunkCount, addSessionFile } from '../db/sessions'
+import { updateSessionChunkCount, addSessionFile, updateSessionTimestampRange } from '../db/sessions'
 import { chunkLines } from './chunker'
 import { embedAndPrepare } from './embedder'
 import { storeVectors } from './vectorstore'
@@ -70,8 +70,14 @@ export async function runIngestPipeline(
   onProgress({ stage: 'storing', current: 0, total: records.length, message: 'Storing vectors…' })
   await storeVectors(sessionId, records)
 
-  // ── Update session chunk count in SQLite ─────────────────────────────────
+  // ── Update session chunk count and timestamp range in SQLite ────────────
   updateSessionChunkCount(sessionId, records.length)
+
+  const starts = allChunks.map(c => c.timestampStart).filter((t): t is number => t !== null)
+  const ends   = allChunks.map(c => c.timestampEnd).filter((t): t is number => t !== null)
+  const tsMin  = starts.length > 0 ? Math.min(...starts) : null
+  const tsMax  = ends.length   > 0 ? Math.max(...ends)   : null
+  updateSessionTimestampRange(sessionId, tsMin, tsMax)
 
   onProgress({ stage: 'done', current: records.length, total: records.length, message: `Done — ${records.length} chunks stored.` })
 }

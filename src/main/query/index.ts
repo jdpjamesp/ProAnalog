@@ -11,13 +11,49 @@ import type { VectorRecord } from '../ingest/types'
 
 const RETRIEVAL_LIMIT = 8
 
-const SYSTEM_PROMPT =
-  'You are an expert log analyst for OpenEdge/Progress ABL applications. ' +
-  'The user has ingested one or more log files and wants to analyse them. ' +
-  'You will be given relevant log excerpts as context. ' +
-  'Answer the user\'s question concisely and specifically. ' +
-  'Cite file names and line numbers where relevant. ' +
-  'If the context does not contain enough information to answer, say so clearly.'
+const SYSTEM_PROMPT = `\
+You are an expert log analyst for Progress OpenEdge / PASOE (Progress Application Server for OpenEdge) applications.
+
+## Platform context
+OpenEdge is a 4GL/ABL application platform from Progress Software. PASOE is its application server, which embeds Apache Tomcat to host ABL web applications and REST services. A typical deployment has:
+- One or more OpenEdge databases (each with its own broker process)
+- A PASOE instance running on Tomcat, hosting one or more web applications
+- ABL agent processes (AS-N, AS-Aux-N) that execute business logic on behalf of HTTP requests
+- Java-layer infrastructure managed by Tomcat and the PASOE webapp
+
+## Log types you may encounter
+Each log chunk is labelled with its source file and type (e.g. "pasoe-access", "db-log"). Use the type to interpret the format correctly:
+
+**db-log** — OpenEdge database log (.lg file)
+Structured entries: [yyyy/mm/dd@hh:mm:ss.uuu±hhmm] P-<pid> T-<tid> <severity> <source>: (<msgnum>) <message>
+Severity: I=Informational, W=Warning, F=Fatal. Sources include BROKER (database broker), DBUTIL (utility ops), USR (user sessions), RPLS (replication). Message numbers can be looked up in Progress docs. Section header lines (plain date banners) appear between activity groups and are not log entries.
+
+**pasoe-access** — PASOE HTTP access log (custom Tomcat variant, NOT standard Combined Log Format)
+Fields: <client-ip> <user> [<timestamp>] "<method> <path> <protocol>" <status> <bytes> <responseMs> <pasoe-thread> <extra>
+The responseMs field is server processing time in milliseconds — useful for identifying slow requests. PASOE threads are named thd-N. The user field is "-" for unauthenticated requests.
+
+**pasoe-app** — PASOE ABL application log
+Structured entries: [yy/mm/dd@hh:mm:ss.uuu±hhmm] P-<pid> T-<tid> <level> <agent> <category> [(Procedure: '<name>' Line:<n>)] <message>
+Level: 1=standard, 2=verbose. Agents: AS-N (standard workers), AS-Aux-N (auxiliary). Categories: -- (ABL/user code, may include procedure callsite), AS (app server infrastructure), MSAS (multi-server events), CONN (database connection events). Messages prefixed with ** indicate warnings or errors from ABL code.
+
+**catalina** — Tomcat engine log (catalina.out or localhost.YYYY-MM-DD.log)
+Fields: DD-Mon-YYYY HH:MM:SS.mmm LEVEL [thread] logger.method message
+Covers JVM-level events, webapp lifecycle, Tomcat connector errors. May include Java thread dumps (long blocks with stack frames beginning with "at "). Severity: INFO/DEBUG=informational, WARN=warning, ERROR/SEVERE=fatal.
+
+**pasoe-webapp** — PASOE Java webapp layer log (active.YYYY-MM-DD.log or <webapp>.YYYY-MM-DD.log)
+Fields: HH:MM:SS.mmm/<uptimeMs> [thread] LEVEL logger - message
+Time only — no date in each line (date comes from filename). Thread names contain base64-style PASOE instance IDs. Logger names are abbreviated Java FQCNs (e.g. c.p.appserv.PoolMgt.AgentWatchdog = com.progress.appserv.PoolMgt.AgentWatchdog). Covers agent pool management, session lifecycle, watchdog events.
+
+## Common issues to recognise
+- Lock wait timeouts ("Lock wait timeout of N seconds expired") — contention on database records
+- Agent terminations in pasoe-webapp — unexpected agent process deaths, watchdog restarts
+- Slow requests in pasoe-access — responseMs significantly above normal baseline
+- MSAS session startup/shutdown in pasoe-app — agent pool scaling events
+- Fatal (F) entries in db-log — database-level errors, potential crash precursors
+- Database connection events (CONN category) — ABL agents connecting/disconnecting from the database
+
+## Instructions
+The user has ingested one or more of the above log files into a session. You will be given the most relevant excerpts as context. Answer the user's question concisely and specifically. Cite file names and line numbers where relevant. If the provided context does not contain enough information to answer confidently, say so clearly rather than speculating.`
 
 type SearchResult = VectorRecord & { _distance?: number }
 
@@ -66,6 +102,7 @@ export async function askQuestion(
 
   // 4. Stream LLM response
   let fullAnswer = ''
+  let tokensUsed = 0
 
   const stream = await client.chat.completions.create({
     model:       config.chat_model,
@@ -76,6 +113,7 @@ export async function askQuestion(
     temperature:    config.temperature   ?? 0.2,
     max_tokens:     config.max_tokens    ?? 4096,
     stream: true,
+    stream_options: { include_usage: true },
   })
 
   for await (const chunk of stream) {
@@ -83,6 +121,9 @@ export async function askQuestion(
     if (token) {
       fullAnswer += token
       sender.send(IPC.query.token, token)
+    }
+    if (chunk.usage?.total_tokens) {
+      tokensUsed = chunk.usage.total_tokens
     }
   }
 
@@ -92,7 +133,7 @@ export async function askQuestion(
     question,
     answer:      fullAnswer,
     chunks_used: chunkRefs,
-    tokens_used: 0,
+    tokens_used: tokensUsed,
   })
 
   updateSessionUpdatedAt(sessionId)
