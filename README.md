@@ -82,7 +82,18 @@ Chat interface for interrogating the active session. Each question is embedded, 
 Follow-up questions reuse the existing embeddings — no re-ingestion needed.
 
 ### Settings
-Configure the LLM provider (base URL, API key, chat model, embedding model, temperature, max tokens, timeout) and ingestion parameters (chunk size, overlap in lines, and embedding concurrency). Embedding concurrency controls how many batches are sent to the embedding model in parallel during ingest — raise it for local providers like Ollama (5–10), keep it low for rate-limited cloud APIs (1–3).
+Three configuration sections:
+
+**LLM Provider** — base URL, API key, chat model, embedding model, temperature, max tokens, and timeout. The API key is stored encrypted.
+
+**Ingestion** — controls how log files are chunked before embedding:
+- *Chunk size* — lines per chunk (default 50). Smaller = more precise embeddings, more chunks.
+- *Chunk overlap* — lines shared between adjacent chunks (default 15). Higher values prevent log events from being split across chunk boundaries. Range: 10–20.
+- *Embedding concurrency* — parallel batches during ingest (Ollama: 5–10, OpenAI: 3–5, Google free tier: 1–2).
+
+**Query & Retrieval** — controls how context is fetched at query time:
+- *Search type* — **Exact** (default) scans all vectors for a deterministic result; the same question always retrieves the same chunks. **Approximate** uses an ANN index, which is faster on very large datasets but may return different chunks on repeated queries.
+- *Retrieval limit* — number of chunks sent to the LLM per query (default 12). Higher values give more context but use more tokens. Range: 8–20.
 
 ---
 

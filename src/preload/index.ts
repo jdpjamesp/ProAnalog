@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { Session, SessionFile, Query, ChunkRef, ProviderConfig, IngestConfig, IngestParseResult, IngestRunOptions, IngestProgress } from '../shared/types'
+import type { Session, SessionFile, Query, ChunkRef, ProviderConfig, IngestConfig, QueryConfig, IngestParseResult, IngestRunOptions, IngestProgress } from '../shared/types'
 import { IPC } from '../shared/types'
 
 type Unsub = () => void
@@ -33,6 +33,8 @@ const api = {
     setProvider:  (config: ProviderConfig):        Promise<void>               => ipcRenderer.invoke(IPC.settings.set, 'provider', config),
     getIngest:    ():                              Promise<IngestConfig | null>  => ipcRenderer.invoke(IPC.settings.get, 'ingest'),
     setIngest:    (config: IngestConfig):          Promise<void>               => ipcRenderer.invoke(IPC.settings.set, 'ingest', config),
+    getQuery:     ():                              Promise<QueryConfig | null>   => ipcRenderer.invoke(IPC.settings.get, 'query'),
+    setQuery:     (config: QueryConfig):           Promise<void>               => ipcRenderer.invoke(IPC.settings.set, 'query', config),
   },
   ingest: {
     parse:    (filepath: string):         Promise<IngestParseResult> => ipcRenderer.invoke(IPC.ingest.parse, filepath),

@@ -61,6 +61,11 @@ export interface IngestConfig {
   embedding_concurrency: number  // parallel embedding batches
 }
 
+export interface QueryConfig {
+  retrieval_limit: number              // chunks fetched per query
+  search_type: 'exact' | 'approximate' // exact = deterministic flat scan
+}
+
 /** One file to ingest — renderer sends filepath + optional logType override. */
 export interface IngestFileSpec {
   filepath: string

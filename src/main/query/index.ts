@@ -5,11 +5,12 @@ import { createQuery } from '../db/queries'
 import { updateSessionUpdatedAt } from '../db/sessions'
 import { searchVectors } from '../ingest/vectorstore'
 import { embedTexts } from '../embed'
-import type { ProviderConfig, Query, ChunkRef } from '../../shared/types'
+import type { ProviderConfig, QueryConfig, Query, ChunkRef } from '../../shared/types'
 import { IPC } from '../../shared/types'
 import type { VectorRecord } from '../ingest/types'
 
-const RETRIEVAL_LIMIT = 8
+const DEFAULT_RETRIEVAL_LIMIT = 12
+const DEFAULT_SEARCH_TYPE: QueryConfig['search_type'] = 'exact'
 
 const SYSTEM_PROMPT = `\
 You are an expert log analyst for Progress OpenEdge / PASOE (Progress Application Server for OpenEdge) applications.
@@ -68,6 +69,10 @@ export async function askQuestion(
   if (!config.chat_model)    throw new Error('No chat model configured in the active provider.')
   if (!config.embedding_model) throw new Error('No embedding model configured in the active provider.')
 
+  const queryConfig = getSetting<QueryConfig>('query')
+  const retrievalLimit = queryConfig?.retrieval_limit ?? DEFAULT_RETRIEVAL_LIMIT
+  const searchType     = queryConfig?.search_type     ?? DEFAULT_SEARCH_TYPE
+
   const client = new OpenAI({
     apiKey:  config.api_key || 'no-key',
     baseURL: config.base_url || undefined,
@@ -78,7 +83,7 @@ export async function askQuestion(
   const [qVector] = await embedTexts(config, [question])
 
   // 2. Search LanceDB
-  const rawResults = await searchVectors(sessionId, qVector, RETRIEVAL_LIMIT, timeRange)
+  const rawResults = await searchVectors(sessionId, qVector, retrievalLimit, timeRange, searchType)
   const results = rawResults as SearchResult[]
 
   const chunkRefs: ChunkRef[] = results.map(r => ({

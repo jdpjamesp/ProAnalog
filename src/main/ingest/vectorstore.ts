@@ -35,7 +35,8 @@ export async function searchVectors(
   sessionId: number,
   queryVector: number[],
   limit: number,
-  timeRange?: { start: number; end: number }
+  timeRange?: { start: number; end: number },
+  searchType: 'exact' | 'approximate' = 'exact'
 ): Promise<VectorRecord[]> {
   const conn = await getConnection()
   const name = tableName(sessionId)
@@ -45,6 +46,10 @@ export async function searchVectors(
   }
   const table = await conn.openTable(name)
   let q = table.search(queryVector).limit(limit)
+  if (searchType === 'exact') {
+    // Bypass ANN index for a deterministic flat scan — fast enough for log file sizes
+    q = q.bypassVectorIndex()
+  }
   if (timeRange) {
     // Include chunks with no timestamp (-1) and chunks whose window overlaps the filter range
     q = q.where(

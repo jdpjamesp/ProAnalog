@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import type { ProviderConfig, IngestConfig, Session, Query, ChunkRef, IngestProgress, IngestParseResult } from '../../shared/types'
+import type { ProviderConfig, IngestConfig, QueryConfig, Session, Query, ChunkRef, IngestProgress, IngestParseResult } from '../../shared/types'
 import './styles.css'
 
 type View = 'sessions' | 'ingest' | 'query' | 'settings'
@@ -1123,18 +1123,22 @@ const DEFAULT_PROVIDER: ProviderConfig = {
   label: '', base_url: '', api_key: '', chat_model: '',
   embedding_model: '', temperature: 0.2, max_tokens: 4096, timeout_seconds: 120,
 }
-const DEFAULT_INGEST: IngestConfig = { chunk_size: 50, chunk_overlap: 5, embedding_concurrency: 3 }
+const DEFAULT_INGEST: IngestConfig = { chunk_size: 50, chunk_overlap: 15, embedding_concurrency: 3 }
+const DEFAULT_QUERY: QueryConfig   = { retrieval_limit: 12, search_type: 'exact' }
 
 function SettingsView() {
   const [provider, setProvider] = useState<ProviderConfig>(DEFAULT_PROVIDER)
   const [ingest, setIngest]     = useState<IngestConfig>(DEFAULT_INGEST)
+  const [query, setQuery]       = useState<QueryConfig>(DEFAULT_QUERY)
   const [showKey, setShowKey]   = useState(false)
   const [providerSaved, setProviderSaved] = useState(false)
   const [ingestSaved, setIngestSaved]     = useState(false)
+  const [querySaved, setQuerySaved]       = useState(false)
 
   useEffect(() => {
     window.api.settings.getProvider().then(cfg => cfg && setProvider(cfg))
     window.api.settings.getIngest().then(cfg  => cfg && setIngest(cfg))
+    window.api.settings.getQuery().then(cfg   => cfg && setQuery(cfg))
   }, [])
 
   const saveProvider = async () => {
@@ -1147,6 +1151,12 @@ function SettingsView() {
     await window.api.settings.setIngest(ingest)
     setIngestSaved(true)
     setTimeout(() => setIngestSaved(false), 2000)
+  }
+
+  const saveQuery = async () => {
+    await window.api.settings.setQuery(query)
+    setQuerySaved(true)
+    setTimeout(() => setQuerySaved(false), 2000)
   }
 
   const setP = <K extends keyof ProviderConfig>(key: K, raw: string) =>
@@ -1164,7 +1174,7 @@ function SettingsView() {
 
   return (
     <>
-      <PanelHeader title="Settings" subtitle="LLM provider and ingestion configuration" />
+      <PanelHeader title="Settings" subtitle="LLM provider, ingestion and retrieval configuration" />
       <div style={{ flex: 1, minHeight: 0, padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 640 }}>
 
         <SettingsCard title="LLM Provider">
@@ -1202,9 +1212,9 @@ function SettingsView() {
           <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: '-0.25rem' }}>
             Lines per chunk sent to the embedding model. Smaller = more granular retrieval, more chunks.
           </div>
-          <SettingsField label="Chunk overlap (lines)" value={String(ingest.chunk_overlap)} onChange={v => setI('chunk_overlap', v)} placeholder="5" />
+          <SettingsField label="Chunk overlap (lines)" value={String(ingest.chunk_overlap)} onChange={v => setI('chunk_overlap', v)} placeholder="15" />
           <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: '-0.25rem' }}>
-            Lines shared between adjacent chunks to preserve context at boundaries.
+            Lines shared between adjacent chunks. Higher values reduce the chance of a log event being split across a boundary. Default: 15. Range: 10–20.
           </div>
           <SettingsField label="Embedding concurrency" value={String(ingest.embedding_concurrency)} onChange={v => setI('embedding_concurrency', v)} placeholder="3" />
           <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: '-0.25rem', display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -1220,6 +1230,38 @@ function SettingsView() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.75rem', paddingTop: '0.25rem' }}>
             {ingestSaved && <span style={{ fontSize: 12, color: 'var(--teal)' }}>✓ Saved</span>}
             <Btn variant="primary" onClick={saveIngest}>Save ingestion settings</Btn>
+          </div>
+        </SettingsCard>
+
+        <SettingsCard title="Query &amp; Retrieval">
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--text-3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+              Search type
+            </label>
+            <select
+              value={query.search_type}
+              onChange={e => setQuery(q => ({ ...q, search_type: e.target.value as QueryConfig['search_type'] }))}
+              style={{
+                width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)',
+                borderRadius: 6, padding: '7px 10px', color: 'var(--text-1)',
+                fontFamily: 'var(--font)', fontSize: 13.5, outline: 'none',
+              }}
+            >
+              <option value="exact">Exact (recommended)</option>
+              <option value="approximate">Approximate (ANN)</option>
+            </select>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: '-0.25rem', display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <span><span style={{ color: 'var(--teal)' }}>Exact</span> — scans all vectors for a deterministic result. The same question always retrieves the same chunks. Fast for log file sizes (hundreds to a few thousand chunks).</span>
+            <span><span style={{ color: 'var(--teal)' }}>Approximate</span> — uses an ANN index. Faster on very large datasets but may return different chunks on repeated queries, leading to inconsistent answers.</span>
+          </div>
+          <SettingsField label="Retrieval limit (chunks)" value={String(query.retrieval_limit)} onChange={v => setQuery(q => ({ ...q, retrieval_limit: parseInt(v, 10) || 12 }))} placeholder="12" />
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: '-0.25rem' }}>
+            Number of log chunks retrieved and sent to the LLM per query. Higher values give more context but use more tokens. Default: 12. Range: 8–20.
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.75rem', paddingTop: '0.25rem' }}>
+            {querySaved && <span style={{ fontSize: 12, color: 'var(--teal)' }}>✓ Saved</span>}
+            <Btn variant="primary" onClick={saveQuery}>Save retrieval settings</Btn>
           </div>
         </SettingsCard>
 
