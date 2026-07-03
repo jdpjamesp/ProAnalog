@@ -74,12 +74,14 @@ Drag and drop log files (or use the file picker) to start a new session. Each fi
 ### Query
 Chat interface for interrogating the active session. Each question is embedded, the closest chunks are retrieved from LanceDB, and the full context is sent to the LLM. Responses stream token by token. The right-hand sidebar shows:
 
-- **Time filter** — From/To pickers pre-populated with the actual date/time range of the ingested logs, so you can immediately narrow to a specific window without consulting the raw files. Chunks with no timestamp are always included regardless of the filter.
+- **Time filter** — From/To pickers pre-populated with the actual date/time range of the ingested logs, so you can immediately narrow to a specific window without consulting the raw files. Chunks with no timestamp are always included regardless of the filter. When a time filter is set, *every* chunk in that window is sent to the LLM, even if that exceeds the retrieval limit setting below — the filter is treated as an explicit request for the whole window, not just the top-K most similar chunks.
 - **Session stats** — file count, chunk count, query count, and a Coverage line showing the overall time span of the logs.
 - **Retrieved chunks** — the specific excerpts used for the last answer, with relevance scores.
 - **Token usage** — tokens used for the last query and the running session total.
 
 Follow-up questions reuse the existing embeddings — no re-ingestion needed.
+
+Querying is disabled while a session is actively being ingested (input and send button are greyed out with an explanatory message) to avoid running against incomplete embeddings — ingestion continues in the background if you switch away from the Ingest tab, so just wait for it to finish.
 
 ### Settings
 Three configuration sections:
@@ -89,7 +91,7 @@ Three configuration sections:
 **Ingestion** — controls how log files are chunked before embedding:
 - *Chunk size* — lines per chunk (default 50). Smaller = more precise embeddings, more chunks.
 - *Chunk overlap* — lines shared between adjacent chunks (default 15). Higher values prevent log events from being split across chunk boundaries. Range: 10–20.
-- *Embedding concurrency* — parallel batches during ingest (Ollama: 5–10, OpenAI: 3–5, Google free tier: 1–2).
+- *Embedding concurrency* — parallel batches during ingest (Ollama/local: 5–10, OpenAI: 3–5, Groq: 2–4, Google free tier: 1–2).
 
 **Query & Retrieval** — controls how context is fetched at query time:
 - *Search type* — **Exact** (default) scans all vectors for a deterministic result; the same question always retrieves the same chunks. **Approximate** uses an ANN index, which is faster on very large datasets but may return different chunks on repeated queries.
