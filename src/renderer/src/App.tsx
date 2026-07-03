@@ -9,6 +9,7 @@ export default function App(): React.JSX.Element {
   const [activeSession, setActiveSession] = useState<Session | null>(null)
   const [sessionCount, setSessionCount]     = useState(0)
   const [recentSessions, setRecentSessions] = useState<Session[]>([])
+  const [ingestPhase, setIngestPhase]       = useState<IngestPhase>('idle')
 
   useEffect(() => {
     window.api.sessions.list().then(s => {
@@ -34,10 +35,13 @@ export default function App(): React.JSX.Element {
   return (
     <div style={shell}>
       <Titlebar activeSession={activeSession} />
-      <Sidebar view={view} onNavigate={setView} activeSession={activeSession} sessionCount={sessionCount} recentSessions={recentSessions} onSessionSelect={handleSessionSelect} />
+      <Sidebar view={view} onNavigate={setView} activeSession={activeSession} sessionCount={sessionCount} recentSessions={recentSessions} onSessionSelect={handleSessionSelect} ingestPhase={ingestPhase} />
       <main style={mainStyle}>
         {view === 'sessions'  && <SessionsView onSessionSelect={handleSessionSelect} onNavigate={setView} onSessionDeleted={handleSessionDeleted} />}
-        {view === 'ingest'    && <IngestView onNavigate={setView} onSessionCreated={handleSessionCreated} />}
+        {/* IngestView stays mounted so ingest state + progress survive navigation */}
+        <div style={{ display: view === 'ingest' ? 'contents' : 'none' }}>
+          <IngestView onNavigate={setView} onSessionCreated={handleSessionCreated} onPhaseChange={setIngestPhase} />
+        </div>
         {view === 'query'     && <QueryView activeSession={activeSession} onNavigate={setView} />}
         {view === 'settings'  && <SettingsView />}
       </main>
@@ -147,9 +151,10 @@ function RecentSessionItem({ session, active, onClick }: { session: Session; act
   )
 }
 
-function Sidebar({ view, onNavigate, activeSession, sessionCount, recentSessions, onSessionSelect }: {
+function Sidebar({ view, onNavigate, activeSession, sessionCount, recentSessions, onSessionSelect, ingestPhase }: {
   view: View; onNavigate: (v: View) => void; activeSession: Session | null
   sessionCount: number; recentSessions: Session[]; onSessionSelect: (s: Session) => void
+  ingestPhase: IngestPhase
 }) {
   return (
     <aside style={{
@@ -161,7 +166,7 @@ function Sidebar({ view, onNavigate, activeSession, sessionCount, recentSessions
     }}>
       <NavSection label="Analysis">
         <NavItem icon="⊞" label="Sessions"  active={view === 'sessions'}  onClick={() => onNavigate('sessions')} badge={String(sessionCount)} />
-        <NavItem icon="↑" label="Ingest"    active={view === 'ingest'}    onClick={() => onNavigate('ingest')} />
+        <NavItem icon="↑" label="Ingest"    active={view === 'ingest'}    onClick={() => onNavigate('ingest')} loading={ingestPhase === 'ingesting'} />
         <NavItem icon="◈" label="Query"     active={view === 'query'}     onClick={() => onNavigate('query')} />
       </NavSection>
 
@@ -208,8 +213,8 @@ function NavSection({ label, children }: { label: string; children: React.ReactN
   )
 }
 
-function NavItem({ icon, label, active, onClick, badge }: {
-  icon: string; label: string; active: boolean; onClick: () => void; badge?: string
+function NavItem({ icon, label, active, onClick, badge, loading }: {
+  icon: string; label: string; active: boolean; onClick: () => void; badge?: string; loading?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
   return (
@@ -228,7 +233,10 @@ function NavItem({ icon, label, active, onClick, badge }: {
     >
       <span style={{ width: 16, textAlign: 'center', fontSize: 15, flexShrink: 0, color: active ? 'var(--accent)' : 'inherit' }}>{icon}</span>
       {label}
-      {badge !== undefined && (
+      {loading && (
+        <span style={{ marginLeft: 'auto', width: 8, height: 8, borderRadius: '50%', background: 'var(--teal)', flexShrink: 0, opacity: 0.9 }} className="nav-pulse" />
+      )}
+      {!loading && badge !== undefined && (
         <span style={{ marginLeft: 'auto', background: 'var(--accent-dim)', color: 'var(--accent-text)', fontSize: 10, padding: '1px 6px', borderRadius: 10, fontWeight: 600 }}>
           {badge}
         </span>
@@ -496,13 +504,16 @@ interface FileEntry {
   error: string | null
 }
 
-function IngestView({ onNavigate, onSessionCreated }: {
+function IngestView({ onNavigate, onSessionCreated, onPhaseChange }: {
   onNavigate: (v: View) => void
   onSessionCreated: (s: Session) => void
+  onPhaseChange?: (phase: IngestPhase) => void
 }) {
   const [files, setFiles]                   = useState<FileEntry[]>([])
   const [sessionName, setSessionName]       = useState('')
   const [phase, setPhase]                   = useState<IngestPhase>('idle')
+
+  const updatePhase = (p: IngestPhase) => { setPhase(p); onPhaseChange?.(p) }
   const [progress, setProgress]             = useState<IngestProgress | null>(null)
   const [ingestError, setIngestError]       = useState<string | null>(null)
   const [availableParsers, setAvailableParsers] = useState<string[]>([])
@@ -566,13 +577,13 @@ function IngestView({ onNavigate, onSessionCreated }: {
     const readyFiles = files.filter(f => f.parseResult?.logType || f.logTypeOverride)
     if (!readyFiles.length) return
 
-    setPhase('ingesting')
+    updatePhase('ingesting')
     setProgress(null)
     setIngestError(null)
 
     const unsub = window.api.ingest.onProgress(p => {
       setProgress(p)
-      if (p.stage === 'done') { setPhase('done'); unsub() }
+      if (p.stage === 'done') { updatePhase('done'); unsub() }
     })
 
     try {
@@ -587,11 +598,11 @@ function IngestView({ onNavigate, onSessionCreated }: {
           logType:  f.logTypeOverride ?? f.parseResult?.logType ?? undefined,
         })),
         chunkSize:    ingestCfg?.chunk_size    ?? 50,
-        chunkOverlap: ingestCfg?.chunk_overlap ?? 5,
+        chunkOverlap: ingestCfg?.chunk_overlap ?? 15,
       })
     } catch (err) {
       unsub()
-      setPhase('idle')
+      updatePhase('idle')
       setIngestError(err instanceof Error ? err.message : String(err))
     }
   }

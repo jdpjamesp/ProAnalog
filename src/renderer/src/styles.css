@@ -42,3 +42,9 @@ html, body, #root {
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
 button { cursor: pointer; font-family: var(--font); }
+
+@keyframes nav-pulse {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
+.nav-pulse { animation: nav-pulse 1.4s ease-in-out infinite; }
