@@ -45,16 +45,26 @@ export async function searchVectors(
     throw new Error('This session has no ingested data. Please re-ingest the log files for this session.')
   }
   const table = await conn.openTable(name)
-  let q = table.search(queryVector).limit(limit)
+
+  // Include chunks with no timestamp (-1) and chunks whose window overlaps the filter range
+  const whereClause = timeRange
+    ? `timestamp_start = -1 OR (timestamp_start <= ${timeRange.end} AND timestamp_end >= ${timeRange.start})`
+    : undefined
+
+  // A time range is an explicit request for everything in that window — never truncate below its match count
+  let effectiveLimit = limit
+  if (whereClause) {
+    const matchCount = await table.countRows(whereClause)
+    effectiveLimit = Math.max(limit, matchCount)
+  }
+
+  let q = table.search(queryVector).limit(effectiveLimit)
   if (searchType === 'exact') {
     // Bypass ANN index for a deterministic flat scan — fast enough for log file sizes
     q = q.bypassVectorIndex()
   }
-  if (timeRange) {
-    // Include chunks with no timestamp (-1) and chunks whose window overlaps the filter range
-    q = q.where(
-      `timestamp_start = -1 OR (timestamp_start <= ${timeRange.end} AND timestamp_end >= ${timeRange.start})`
-    )
+  if (whereClause) {
+    q = q.where(whereClause)
   }
   const results = await q.toArray()
   return results as unknown as VectorRecord[]

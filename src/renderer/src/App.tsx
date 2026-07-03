@@ -42,7 +42,7 @@ export default function App(): React.JSX.Element {
         <div style={{ display: view === 'ingest' ? 'contents' : 'none' }}>
           <IngestView onNavigate={setView} onSessionCreated={handleSessionCreated} onPhaseChange={setIngestPhase} />
         </div>
-        {view === 'query'     && <QueryView activeSession={activeSession} onNavigate={setView} />}
+        {view === 'query'     && <QueryView activeSession={activeSession} onNavigate={setView} ingestPhase={ingestPhase} />}
         {view === 'settings'  && <SettingsView />}
       </main>
     </div>
@@ -813,10 +813,12 @@ function fmtCoverage(epochMs: number): string {
   return `${d.getDate()} ${d.toLocaleString('en', { month: 'short' })} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-function QueryView({ activeSession, onNavigate }: {
+function QueryView({ activeSession, onNavigate, ingestPhase }: {
   activeSession: Session | null
   onNavigate: (v: View) => void
+  ingestPhase: IngestPhase
 }) {
+  const isIngesting = ingestPhase === 'ingesting'
   const [messages, setMessages]               = useState<Message[]>([])
   const [input, setInput]                     = useState('')
   const [sending, setSending]                 = useState(false)
@@ -911,7 +913,7 @@ function QueryView({ activeSession, onNavigate }: {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
   }
 
-  const canSend = !!activeSession && !sending && !!input.trim()
+  const canSend = !!activeSession && !sending && !!input.trim() && !isIngesting
 
   return (
     <>
@@ -924,7 +926,10 @@ function QueryView({ activeSession, onNavigate }: {
         {/* Chat column */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--border)', minHeight: 0 }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {messages.length === 0 && (
+            {isIngesting && (
+              <ChatBubble role="ai" text="Ingestion in progress — please wait for it to finish before asking questions." />
+            )}
+            {messages.length === 0 && !isIngesting && (
               <ChatBubble role="ai" text={
                 activeSession
                   ? 'Session loaded. Ask anything about the log — errors, patterns, performance issues, specific processes, and more.'
@@ -944,14 +949,14 @@ function QueryView({ activeSession, onNavigate }: {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={activeSession ? 'Ask anything about this log…' : 'Load a session first'}
-                  disabled={!activeSession || sending}
+                  placeholder={isIngesting ? 'Ingestion in progress…' : activeSession ? 'Ask anything about this log…' : 'Load a session first'}
+                  disabled={!activeSession || sending || isIngesting}
                   rows={1}
                   style={{
                     flex: 1, background: 'none', border: 'none', outline: 'none',
                     color: 'var(--text-1)', fontFamily: 'var(--font)', fontSize: 13.5,
                     lineHeight: 1.5, resize: 'none', minHeight: 22, maxHeight: 120,
-                    opacity: (!activeSession || sending) ? 0.5 : 1,
+                    opacity: (!activeSession || sending || isIngesting) ? 0.5 : 1,
                   }}
                 />
               </div>
@@ -960,7 +965,7 @@ function QueryView({ activeSession, onNavigate }: {
                   <kbd style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 3, padding: '0 4px', fontFamily: 'var(--mono)', fontSize: 10 }}>Enter</kbd> send &nbsp;
                   <kbd style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 3, padding: '0 4px', fontFamily: 'var(--mono)', fontSize: 10 }}>Shift+Enter</kbd> newline
                 </span>
-                <span style={{ marginLeft: 'auto' }}>Uses existing embeddings · no re-ingestion</span>
+                <span style={{ marginLeft: 'auto' }}>{isIngesting ? 'Ingestion in progress — please wait before querying' : 'Uses existing embeddings · no re-ingestion'}</span>
               </div>
             </div>
             <button
@@ -1013,13 +1018,18 @@ function QueryView({ activeSession, onNavigate }: {
                 />
               </div>
               {(timeFrom || timeTo) && (
-                <button
-                  onClick={() => { setTimeFrom(''); setTimeTo('') }}
-                  style={{
-                    alignSelf: 'flex-end', background: 'none', border: '1px solid var(--border)',
-                    borderRadius: 4, color: 'var(--text-3)', fontSize: 10, padding: '2px 8px', cursor: 'pointer',
-                  }}
-                >Clear filter</button>
+                <>
+                  <button
+                    onClick={() => { setTimeFrom(''); setTimeTo('') }}
+                    style={{
+                      alignSelf: 'flex-end', background: 'none', border: '1px solid var(--border)',
+                      borderRadius: 4, color: 'var(--text-3)', fontSize: 10, padding: '2px 8px', cursor: 'pointer',
+                    }}
+                  >Clear filter</button>
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', paddingTop: 2 }}>
+                    All chunks in this window are sent, even if that exceeds the retrieval limit.
+                  </div>
+                </>
               )}
               {!(timeFrom || timeTo) && (
                 <div style={{ fontSize: 10, color: 'var(--text-3)', paddingTop: 2 }}>

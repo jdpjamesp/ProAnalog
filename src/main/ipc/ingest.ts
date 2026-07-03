@@ -5,6 +5,7 @@ import { runIngestPipeline, DEFAULT_INGEST_OPTIONS } from '../ingest'
 import type { IngestParseResult, IngestRunOptions } from '../../shared/types'
 import type { WebContents } from 'electron'
 import { IPC } from '../../shared/types'
+import { setIngestionInProgress } from '../state'
 
 const SNIFF_BYTES = 2048
 
@@ -43,15 +44,20 @@ export async function parseLogFile(filepath: string): Promise<IngestParseResult>
 }
 
 export async function runIngest(sender: WebContents, options: IngestRunOptions): Promise<void> {
-  await runIngestPipeline(
-    options.sessionId,
-    options.files,
-    {
-      chunkSize: options.chunkSize ?? DEFAULT_INGEST_OPTIONS.chunkSize,
-      chunkOverlap: options.chunkOverlap ?? DEFAULT_INGEST_OPTIONS.chunkOverlap,
-      timeRangeStart: options.timeRangeStart ? new Date(options.timeRangeStart) : undefined,
-      timeRangeEnd: options.timeRangeEnd ? new Date(options.timeRangeEnd) : undefined,
-    },
-    (progress) => sender.send(IPC.ingest.progress, progress)
-  )
+  setIngestionInProgress(true)
+  try {
+    await runIngestPipeline(
+      options.sessionId,
+      options.files,
+      {
+        chunkSize: options.chunkSize ?? DEFAULT_INGEST_OPTIONS.chunkSize,
+        chunkOverlap: options.chunkOverlap ?? DEFAULT_INGEST_OPTIONS.chunkOverlap,
+        timeRangeStart: options.timeRangeStart ? new Date(options.timeRangeStart) : undefined,
+        timeRangeEnd: options.timeRangeEnd ? new Date(options.timeRangeEnd) : undefined,
+      },
+      (progress) => sender.send(IPC.ingest.progress, progress)
+    )
+  } finally {
+    setIngestionInProgress(false)
+  }
 }
